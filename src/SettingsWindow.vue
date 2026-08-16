@@ -3,10 +3,18 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { onMounted, ref } from "vue";
 import type { Settings } from "./types/settings";
-import { DEFAULT_SETTINGS } from "./types/settings";
+import { createDefaultSettings, sanitizeSettings } from "./types/settings";
 
-const settings = ref<Settings>({ ...DEFAULT_SETTINGS });
+const settings = ref<Settings>(createDefaultSettings());
 const isSaving = ref(false);
+const statusMessage = ref("");
+const statusIsError = ref(false);
+
+// 操作結果はconsoleではなく画面上でユーザーに伝える
+function showStatus(message: string, isError = false) {
+  statusMessage.value = message;
+  statusIsError.value = isError;
+}
 
 // 設定の読み込み
 async function loadSettings() {
@@ -24,10 +32,12 @@ async function loadSettings() {
 async function saveSettings() {
   isSaving.value = true;
   try {
+    // InputNumberの空入力によるnullを保存前に補完する
+    settings.value = sanitizeSettings(settings.value);
     await invoke("save_settings", { settings: settings.value });
-    console.log("Settings saved successfully");
+    showStatus("Settings saved");
   } catch (error) {
-    console.error("Failed to save settings:", error);
+    showStatus(`Failed to save settings: ${error}`, true);
   } finally {
     isSaving.value = false;
   }
@@ -36,13 +46,20 @@ async function saveSettings() {
 // 設定のリセット
 async function resetSettings() {
   try {
-    await invoke("reset_settings");
-    settings.value = { ...DEFAULT_SETTINGS };
-    console.log("Settings reset successfully");
+    // Rust側のデフォルトを唯一の真実の源とするため、戻り値をそのまま採用する
+    settings.value = await invoke<Settings>("reset_settings");
+    showStatus("Settings reset");
   } catch (error) {
-    console.error("Failed to reset settings:", error);
+    showStatus(`Failed to reset settings: ${error}`, true);
   }
 }
+
+// マスコット画像スロットの一覧(テンプレートのv-forで使用)
+const imageSlots = [
+  { key: "typing1", label: "Typing Image 1" },
+  { key: "typing2", label: "Typing Image 2" },
+  { key: "idle", label: "Idle Image" },
+] as const;
 
 // 画像ファイルの選択
 async function selectImage(imageType: "typing1" | "typing2" | "idle") {
@@ -77,42 +94,16 @@ onMounted(() => {
     <div class="settings-section">
       <h2>Mascot Images</h2>
       <div class="image-settings">
-        <div class="image-item">
-          <label for="image-typing1">Typing Image 1:</label>
+        <div v-for="slot in imageSlots" :key="slot.key" class="image-item">
+          <label :for="`image-${slot.key}`">{{ slot.label }}:</label>
           <div class="image-input-group">
             <InputText
-              id="image-typing1"
-              v-model="settings.images.typing1"
+              :id="`image-${slot.key}`"
+              v-model="settings.images[slot.key]"
               placeholder="No image selected"
               readonly
             />
-            <Button label="Select" @click="selectImage('typing1')" />
-          </div>
-        </div>
-
-        <div class="image-item">
-          <label for="image-typing2">Typing Image 2:</label>
-          <div class="image-input-group">
-            <InputText
-              id="image-typing2"
-              v-model="settings.images.typing2"
-              placeholder="No image selected"
-              readonly
-            />
-            <Button label="Select" @click="selectImage('typing2')" />
-          </div>
-        </div>
-
-        <div class="image-item">
-          <label for="image-idle">Idle Image:</label>
-          <div class="image-input-group">
-            <InputText
-              id="image-idle"
-              v-model="settings.images.idle"
-              placeholder="No image selected"
-              readonly
-            />
-            <Button label="Select" @click="selectImage('idle')" />
+            <Button label="Select" @click="selectImage(slot.key)" />
           </div>
         </div>
       </div>
@@ -165,6 +156,7 @@ onMounted(() => {
             <InputNumber
               v-model="settings.windowPosition.x"
               input-id="position-x"
+              :allow-empty="false"
             />
           </div>
           <div class="input-group">
@@ -172,6 +164,7 @@ onMounted(() => {
             <InputNumber
               v-model="settings.windowPosition.y"
               input-id="position-y"
+              :allow-empty="false"
             />
           </div>
         </div>
@@ -183,6 +176,7 @@ onMounted(() => {
               v-model="settings.windowSize.width"
               input-id="window-width"
               :min="100"
+              :allow-empty="false"
             />
           </div>
           <div class="input-group">
@@ -191,6 +185,7 @@ onMounted(() => {
               v-model="settings.windowSize.height"
               input-id="window-height"
               :min="100"
+              :allow-empty="false"
             />
           </div>
         </div>
@@ -211,6 +206,15 @@ onMounted(() => {
         @click="resetSettings"
       />
     </div>
+
+    <p
+      v-if="statusMessage"
+      class="status-message"
+      :class="{ 'status-error': statusIsError }"
+      role="status"
+    >
+      {{ statusMessage }}
+    </p>
   </div>
 </template>
 
@@ -308,6 +312,16 @@ h2 {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 20px;
+}
+
+.status-message {
+  margin-top: 10px;
+  text-align: right;
+  color: #2e7d32;
+}
+
+.status-message.status-error {
+  color: #c62828;
 }
 </style>
 

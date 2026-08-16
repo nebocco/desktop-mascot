@@ -11,7 +11,7 @@ A desktop mascot application built with Tauri 2 and Vue 3. A mascot image sits o
 - `pnpm tauri dev` — run the app in development mode (starts Vite via `beforeDevCommand`)
 - `pnpm build` — type-check (`vue-tsc --noEmit`) and build the frontend
 - `pnpm tauri build` — build the release binary
-- `pnpm test` — run Rust backend unit tests (`cargo test` in `src-tauri`)
+- `pnpm test` — run all tests: Rust backend (`pnpm test:rust`, i.e. `cargo test` in `src-tauri`) plus frontend (`pnpm test:front`, i.e. `vitest run` over `tests/`)
 
 ## Architecture
 

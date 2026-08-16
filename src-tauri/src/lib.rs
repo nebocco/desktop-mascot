@@ -22,6 +22,7 @@ struct ImagePaths {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 struct Settings {
     #[serde(rename = "windowPosition")]
     window_position: WindowPosition,
@@ -55,8 +56,8 @@ impl Default for Settings {
     }
 }
 
-#[tauri::command]
-fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
+/// Returns the settings file path, creating the config directory if needed.
+fn settings_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let config_dir = app
         .path()
         .app_config_dir()
@@ -67,13 +68,26 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
             .map_err(|e| format!("Failed to create config directory: {}", e))?;
     }
 
-    let settings_path = config_dir.join("settings.json");
+    Ok(config_dir.join("settings.json"))
+}
+
+/// Parses the settings JSON, falling back to defaults when the file is
+/// corrupted or unparsable so the app can always start.
+fn parse_settings_or_default(contents: &str) -> Settings {
+    // 設定ファイルが壊れていてもアプリが起動不能にならないよう、
+    // パース失敗時はデフォルト設定で継続する
+    serde_json::from_str(contents).unwrap_or_else(|_| Settings::default())
+}
+
+#[tauri::command]
+fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
+    let settings_path = settings_path(&app)?;
 
     if settings_path.exists() {
         let contents = fs::read_to_string(&settings_path)
             .map_err(|e| format!("Failed to read settings file: {}", e))?;
 
-        serde_json::from_str(&contents).map_err(|e| format!("Failed to parse settings: {}", e))
+        Ok(parse_settings_or_default(&contents))
     } else {
         Ok(Settings::default())
     }
@@ -81,17 +95,7 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 
 #[tauri::command]
 fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
-    let config_dir = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| format!("Failed to get config directory: {}", e))?;
-
-    if !config_dir.exists() {
-        fs::create_dir_all(&config_dir)
-            .map_err(|e| format!("Failed to create config directory: {}", e))?;
-    }
-
-    let settings_path = config_dir.join("settings.json");
+    let settings_path = settings_path(&app)?;
 
     let json = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
@@ -103,12 +107,7 @@ fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String
 
 #[tauri::command]
 fn reset_settings(app: tauri::AppHandle) -> Result<Settings, String> {
-    let config_dir = app
-        .path()
-        .app_config_dir()
-        .map_err(|e| format!("Failed to get config directory: {}", e))?;
-
-    let settings_path = config_dir.join("settings.json");
+    let settings_path = settings_path(&app)?;
 
     if settings_path.exists() {
         fs::remove_file(&settings_path)
@@ -118,19 +117,12 @@ fn reset_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     Ok(Settings::default())
 }
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            greet,
             get_settings,
             save_settings,
             reset_settings
@@ -268,6 +260,116 @@ mod tests {
             default_speed <= max_speed,
             "Default animation speed should be <= {}",
             max_speed
+        );
+    }
+
+    #[test]
+    fn test_capability_covers_settings_window_and_required_permissions() {
+        // フロントエンドが使うTauri APIはケーパビリティで許可されていないと
+        // 実行時に黙って失敗するため、契約テストで担保する
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/capabilities/default.json");
+        let contents = fs::read_to_string(path).expect("failed to read capabilities/default.json");
+        let capability: serde_json::Value =
+            serde_json::from_str(&contents).expect("capabilities/default.json is not valid JSON");
+
+        let windows: Vec<&str> = capability["windows"]
+            .as_array()
+            .expect("windows should be an array")
+            .iter()
+            .filter_map(|w| w.as_str())
+            .collect();
+        assert!(windows.contains(&"main"), "windows must include \"main\"");
+        assert!(
+            windows.contains(&"settings"),
+            "windows must include \"settings\""
+        );
+
+        let permissions: Vec<String> = capability["permissions"]
+            .as_array()
+            .expect("permissions should be an array")
+            .iter()
+            .filter_map(|p| match p {
+                serde_json::Value::String(s) => Some(s.clone()),
+                serde_json::Value::Object(o) => o
+                    .get("identifier")
+                    .and_then(|i| i.as_str())
+                    .map(String::from),
+                _ => None,
+            })
+            .collect();
+
+        for required in [
+            "core:webview:allow-create-webview-window",
+            "core:window:allow-start-dragging",
+            "core:window:allow-show",
+            "core:window:allow-set-focus",
+            "dialog:default",
+        ] {
+            assert!(
+                permissions.iter().any(|p| p == required),
+                "permissions must include \"{}\"",
+                required
+            );
+        }
+    }
+
+    #[test]
+    fn test_parse_settings_empty_object_falls_back_to_defaults() {
+        let settings = parse_settings_or_default("{}");
+        let default = Settings::default();
+        assert_eq!(settings.window_position.x, default.window_position.x);
+        assert_eq!(settings.animation_speed, default.animation_speed);
+        assert_eq!(settings.opacity, default.opacity);
+        assert_eq!(settings.always_on_top, default.always_on_top);
+    }
+
+    #[test]
+    fn test_parse_settings_broken_json_falls_back_to_defaults() {
+        let settings = parse_settings_or_default("{ this is not json");
+        assert_eq!(
+            settings.animation_speed,
+            Settings::default().animation_speed
+        );
+    }
+
+    #[test]
+    fn test_parse_settings_partial_json_fills_missing_fields_with_defaults() {
+        // 将来のフィールド追加時に既存の設定ファイルが読めなくならないことを担保
+        let settings = parse_settings_or_default(r#"{"animationSpeed": 300}"#);
+        assert_eq!(settings.animation_speed, 300);
+        assert_eq!(
+            settings.window_position.x,
+            Settings::default().window_position.x
+        );
+        assert_eq!(settings.opacity, Settings::default().opacity);
+    }
+
+    #[test]
+    fn test_main_window_is_transparent() {
+        // 透過ウィンドウはCSSだけでは実現できず、ウィンドウ自体の
+        // transparent設定が必要なため、設定ファイルの契約テストで担保する
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/tauri.conf.json");
+        let contents = fs::read_to_string(path).expect("failed to read tauri.conf.json");
+        let conf: serde_json::Value =
+            serde_json::from_str(&contents).expect("tauri.conf.json is not valid JSON");
+
+        let windows = conf["app"]["windows"]
+            .as_array()
+            .expect("app.windows should be an array");
+        let main_window = windows
+            .iter()
+            .find(|w| w["label"] == "main")
+            .expect("main window config should exist");
+
+        assert_eq!(
+            main_window["transparent"],
+            serde_json::Value::Bool(true),
+            "main window must set \"transparent\": true"
+        );
+        assert_eq!(
+            conf["app"]["macOSPrivateApi"],
+            serde_json::Value::Bool(true),
+            "app.macOSPrivateApi must be true for transparency on macOS"
         );
     }
 

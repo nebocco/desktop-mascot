@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { SETTINGS_WINDOW_URL } from "./constants";
 
 // 設定ウィンドウを開く
 async function openSettings() {
-  console.log("Opening settings window...");
   const settingsWindow = await WebviewWindow.getByLabel("settings");
 
   if (settingsWindow) {
@@ -11,7 +11,7 @@ async function openSettings() {
     await settingsWindow.setFocus();
   } else {
     new WebviewWindow("settings", {
-      url: "/settings.html",
+      url: SETTINGS_WINDOW_URL,
       title: "Settings",
       width: 600,
       height: 500,
@@ -33,10 +33,12 @@ function handleContextMenu(_event: MouseEvent) {
     data-tauri-drag-region
     @contextmenu.prevent="handleContextMenu"
   >
-    <div class="mascot-container">
-      <div class="mascot-placeholder">
+    <!-- Tauriのドラッグ判定はmousedownを受けた要素自身の属性しか見ないため、
+         全面を覆う内側の要素すべてに属性を付与する -->
+    <div class="mascot-container" data-tauri-drag-region>
+      <div class="mascot-placeholder" data-tauri-drag-region>
         <!-- マスコット画像がここに表示される -->
-        <div class="mascot-text">🐱</div>
+        <div class="mascot-text" data-tauri-drag-region>🐱</div>
       </div>
       <button type="button" class="settings-btn" @click="openSettings">
         設定
