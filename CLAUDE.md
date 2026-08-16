@@ -28,6 +28,11 @@ Key locations:
 
 Windows communicate through the Tauri event system; settings changes propagate from the settings window to the main window, and main-window drag positions propagate back.
 
+## Code Comments
+
+- Comments must be self-contained. Never reference external documents or tickets by number — no "issue 12", "ADR-003", "Phase 1", "Task 2.1", "PR #1" (or Japanese equivalents like "フェーズ1", "タスク3"). Instead, briefly state the reasoning behind the implementation in place, so the comment stays meaningful without opening another file.
+- This is enforced by a pre-commit hook (`scripts/check-comment-refs.sh` via `prek.toml`), which scans comment lines in staged source files and fails the commit on violations.
+
 ## Reference Documents
 
 - `docs/specification.md` — application specification (Japanese)

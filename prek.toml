@@ -26,3 +26,40 @@ name = "biome check"
 language = "system"
 entry = "pnpm exec biome check --write --no-errors-on-unmatched"
 files = '\.(ts|tsx|js|jsx|vue|json|jsonc|css|html)$'
+
+# コメント内のissue/ADR/Phase/Task番号など外部参照を禁止(コメントは自己完結させる)
+[[repos.hooks]]
+id = "check-comment-refs"
+name = "check comment refs"
+language = "system"
+entry = "scripts/check-comment-refs.sh"
+files = '\.(rs|ts|tsx|js|jsx|vue|css|html|sh)$'
+exclude = '^scripts/check-comment-refs\.sh$'
+
+[[repos]]
+repo = "builtin"
+hooks = [
+    { id = "trailing-whitespace" },
+    { id = "end-of-file-fixer" },
+    { id = "mixed-line-ending", args = [
+        "--fix=lf",
+    ] },
+    { id = "check-yaml" },
+    { id = "check-toml" },
+    # tsconfigと.vscode配下はコメント付きJSON(JSONC)のためcheck-json5で検査する
+    { id = "check-json", exclude = '^(tsconfig(\.node)?\.json|\.vscode/.*\.json)$' },
+    # デフォルトのtypesフィルタは.json5拡張子のみ対象なのでtextに上書きする
+    { id = "check-json5", files = '^(tsconfig(\.node)?\.json|\.vscode/.*\.json)$', types = [
+        "text",
+    ] },
+    { id = "check-merge-conflict" },
+    { id = "check-case-conflict" },
+    { id = "check-added-large-files" },
+    { id = "check-illegal-windows-names" },
+    { id = "check-symlinks" },
+    { id = "destroyed-symlinks" },
+    { id = "fix-byte-order-marker" },
+    { id = "detect-private-key" },
+    { id = "check-executables-have-shebangs" },
+    { id = "check-shebang-scripts-are-executable" },
+]
