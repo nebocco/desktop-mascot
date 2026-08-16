@@ -12,6 +12,11 @@ A desktop mascot application built with Tauri 2 and Vue 3. A mascot image sits o
 - `pnpm build` — type-check (`vue-tsc --noEmit`) and build the frontend
 - `pnpm tauri build` — build the release binary
 - `pnpm test` — run all tests: Rust backend (`pnpm test:rust`, i.e. `cargo test` in `src-tauri`) plus frontend (`pnpm test:front`, i.e. `vitest run` over `tests/`)
+- `just lint` — run clippy (`-D warnings`) and Biome over the whole repo
+- `just format` — run cargo fmt and Biome formatter
+- Pre-commit hooks are managed by prek (`prek.toml`): cargo fmt, clippy,
+  Biome (auto-fixing — re-stage if files change), and the comment-refs check.
+  Frontend lint/format is Biome, not ESLint/Prettier.
 
 ## Architecture
 
