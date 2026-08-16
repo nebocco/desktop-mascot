@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    desktop_maskot_with_tauri_vue_lib::run()
+    desktop_mascot_lib::run()
 }

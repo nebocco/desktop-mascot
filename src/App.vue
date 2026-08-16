@@ -3,6 +3,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 // 設定ウィンドウを開く
 async function openSettings() {
+  console.log("Opening settings window...");
   const settingsWindow = await WebviewWindow.getByLabel("settings");
 
   if (settingsWindow) {
@@ -20,24 +21,26 @@ async function openSettings() {
 }
 
 // 右クリックでメニューを表示
-function handleContextMenu(event: MouseEvent) {
-  event.preventDefault();
+function handleContextMenu(_event: MouseEvent) {
   openSettings();
 }
 </script>
 
 <template>
+  <!-- biome-ignore lint/a11y/noStaticElementInteractions: ウィンドウ全体をドラッグ領域兼右クリックメニューにするための意図的なdiv -->
   <div
     class="main-window"
     data-tauri-drag-region
-    @contextmenu="handleContextMenu"
+    @contextmenu.prevent="handleContextMenu"
   >
     <div class="mascot-container">
       <div class="mascot-placeholder">
         <!-- マスコット画像がここに表示される -->
         <div class="mascot-text">🐱</div>
       </div>
-      <button class="settings-btn" @click="openSettings">⚙️</button>
+      <button type="button" class="settings-btn" @click="openSettings">
+        設定
+      </button>
     </div>
   </div>
 </template>

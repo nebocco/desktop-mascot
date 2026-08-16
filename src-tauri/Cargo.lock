@@ -691,7 +691,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "desktop_maskot_with_tauri_vue"
+name = "desktop-mascot"
 version = "0.1.0"
 dependencies = [
  "serde",
