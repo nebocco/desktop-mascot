@@ -74,6 +74,43 @@ describe("SettingsWindow reset", () => {
     expect(invokeMock).toHaveBeenCalledWith("reset_settings");
     expect(wrapper.text()).toContain("Animation Speed (ms/frame): 123");
   });
+
+  test("propagates the reset settings to the main window via settings-updated", async () => {
+    const backendDefaults = createDefaultSettings();
+    backendDefaults.animationSpeed = 321;
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return createDefaultSettings();
+      if (cmd === "reset_settings") return backendDefaults;
+      return undefined;
+    });
+
+    const wrapper = mountSettingsWindow();
+    await flushPromises();
+
+    await findButtonByLabel(wrapper, "Reset to Default").trigger("click");
+    await flushPromises();
+
+    expect(emitEventMock).toHaveBeenCalledWith(
+      "settings-updated",
+      backendDefaults,
+    );
+  });
+
+  test("does not emit settings-updated when reset fails", async () => {
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return createDefaultSettings();
+      if (cmd === "reset_settings") throw new Error("disk full");
+      return undefined;
+    });
+
+    const wrapper = mountSettingsWindow();
+    await flushPromises();
+
+    await findButtonByLabel(wrapper, "Reset to Default").trigger("click");
+    await flushPromises();
+
+    expect(emitEventMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("SettingsWindow image inputs", () => {

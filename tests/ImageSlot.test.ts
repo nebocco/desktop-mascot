@@ -119,6 +119,39 @@ describe("ImageSlot selection", () => {
   });
 });
 
+describe("ImageSlot re-registration", () => {
+  test("reloads the preview when register_image returns the same stored path", async () => {
+    // register_imageは固定名へ上書きコピーするため、同一スロットの再登録では
+    // 返り値のパス文字列が変わらない。その場合でもプレビューが更新されることを確認する。
+    let loadImageCallCount = 0;
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "load_image") {
+        loadImageCallCount += 1;
+        return loadImageCallCount === 1 ? "OLD" : "NEW";
+      }
+      if (cmd === "register_image") return "/data/images/idle.png";
+      return undefined;
+    });
+    openMock.mockResolvedValue("/home/user/new-pic.png");
+
+    const wrapper = mountSlot("/data/images/idle.png");
+    await flushPromises();
+    expect(wrapper.find("img").attributes("src")).toBe(
+      "data:image/png;base64,OLD",
+    );
+
+    await findButtonByLabel(wrapper, "Select").trigger("click");
+    await flushPromises();
+
+    expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([
+      "/data/images/idle.png",
+    ]);
+    expect(wrapper.find("img").attributes("src")).toBe(
+      "data:image/png;base64,NEW",
+    );
+  });
+});
+
 describe("ImageSlot clear", () => {
   test("emits an empty path on clear", async () => {
     invokeMock.mockImplementation(async () => "QUJD");

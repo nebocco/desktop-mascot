@@ -22,7 +22,7 @@ A desktop mascot application built with Tauri 2 and Vue 3. A mascot image sits o
 
 Two-window Tauri app:
 
-- **Main window** (label `main`): frameless, always-on-top, fixed 200x200, skips the taskbar. Defined in `src-tauri/tauri.conf.json`. Frontend entry is `src/main.ts` mounting `src/App.vue`.
+- **Main window** (label `main`): frameless, skips the taskbar; size (default 200x200), position, and always-on-top are applied from saved settings at startup. Defined in `src-tauri/tauri.conf.json`. Frontend entry is `src/main.ts` mounting `src/App.vue`.
 - **Settings window**: normal resizable window built with PrimeVue components. Frontend entry is `src/settings.ts` mounting `src/SettingsWindow.vue`.
 
 Key locations:

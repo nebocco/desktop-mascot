@@ -55,6 +55,9 @@ async function resetSettings() {
   try {
     // Rust側のデフォルトを唯一の真実の源とするため、戻り値をそのまま採用する
     settings.value = await invoke<Settings>("reset_settings");
+    // リセット後は設定ウィンドウだけでなくメインウィンドウの表示も
+    // 初期状態に更新する必要があるため、保存時と同様にイベントを送出する
+    await emitEvent(SETTINGS_UPDATED_EVENT, settings.value);
     showStatus("Settings reset");
   } catch (error) {
     showStatus(`Failed to reset settings: ${error}`, true);

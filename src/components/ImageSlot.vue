@@ -37,6 +37,9 @@ async function selectImage() {
       sourcePath: selected,
     });
     emit("update:modelValue", storedPath);
+    // 固定名への上書きコピーではパス文字列が変わらず親のv-model更新が発火しないため、
+    // プレビューはここで明示的に読み直す
+    previewUrl.value = await loadImageDataUrl(storedPath);
   } catch (error) {
     emit("error", String(error));
   }
