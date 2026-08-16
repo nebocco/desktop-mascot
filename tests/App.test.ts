@@ -25,7 +25,7 @@ vi.mock("../src/windowSettings", () => ({
 }));
 
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "../src/App.vue";
 import { createDefaultSettings } from "../src/types/settings";
@@ -33,6 +33,7 @@ import { applyWindowSettings } from "../src/windowSettings";
 
 const invokeMock = vi.mocked(invoke);
 const listenMock = vi.mocked(listen);
+const emitMock = vi.mocked(emit);
 const getCurrentWindowMock = vi.mocked(getCurrentWindow);
 const applyWindowSettingsMock = vi.mocked(applyWindowSettings);
 
@@ -42,10 +43,12 @@ const windowStub = {
 
 beforeEach(() => {
   invokeMock.mockReset();
-  listenMock.mockClear();
+  listenMock.mockReset();
+  listenMock.mockResolvedValue(vi.fn());
+  emitMock.mockReset();
   applyWindowSettingsMock.mockReset();
   windowStub.onMoved.mockReset();
-  windowStub.onMoved.mockResolvedValue(() => {});
+  windowStub.onMoved.mockResolvedValue(vi.fn());
   // biome-ignore lint/suspicious/noExplicitAny: テストではウィンドウの一部メソッドだけを模倣する
   getCurrentWindowMock.mockReturnValue(windowStub as any);
   invokeMock.mockImplementation(async (cmd: string) => {
@@ -170,8 +173,29 @@ describe("App drag position persistence", () => {
         x: 7,
         y: 8,
       });
+      expect(emitMock).toHaveBeenCalledWith("position-changed", {
+        x: 7,
+        y: 8,
+      });
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("App listener cleanup", () => {
+  test("unlistens settings-updated and onMoved on unmount", async () => {
+    const settingsUnlisten = vi.fn();
+    const movedUnlisten = vi.fn();
+    listenMock.mockResolvedValue(settingsUnlisten);
+    windowStub.onMoved.mockResolvedValue(movedUnlisten);
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    wrapper.unmount();
+
+    expect(settingsUnlisten).toHaveBeenCalled();
+    expect(movedUnlisten).toHaveBeenCalled();
   });
 });

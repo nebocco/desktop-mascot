@@ -36,7 +36,10 @@ onMounted(async () => {
 
   unlisteners.push(
     await listen<Settings>(SETTINGS_UPDATED_EVENT, (event) => {
-      applySettings(event.payload);
+      // ハンドラ内は同期コールバックなので、失敗を捕まえないと未処理のPromise拒否になる
+      applySettings(event.payload).catch((error) => {
+        console.error("Failed to apply settings:", error);
+      });
     }),
   );
 
