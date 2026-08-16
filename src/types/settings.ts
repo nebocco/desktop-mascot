@@ -43,9 +43,9 @@ export const DEFAULT_SETTINGS: Settings = {
   windowSize: { width: 200, height: 200 },
   animationSpeed: 200,
   images: {
-    typing1: '',
-    typing2: '',
-    idle: '',
+    typing1: "",
+    typing2: "",
+    idle: "",
   },
   opacity: 1.0,
   alwaysOnTop: true,

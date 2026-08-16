@@ -1,5 +1,5 @@
-use std::fs;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use tauri::Manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,7 +39,10 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             window_position: WindowPosition { x: 100, y: 100 },
-            window_size: WindowSize { width: 200, height: 200 },
+            window_size: WindowSize {
+                width: 200,
+                height: 200,
+            },
             animation_speed: 200,
             images: ImagePaths {
                 typing1: String::new(),
@@ -70,8 +73,7 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
         let contents = fs::read_to_string(&settings_path)
             .map_err(|e| format!("Failed to read settings file: {}", e))?;
 
-        serde_json::from_str(&contents)
-            .map_err(|e| format!("Failed to parse settings: {}", e))
+        serde_json::from_str(&contents).map_err(|e| format!("Failed to parse settings: {}", e))
     } else {
         Ok(Settings::default())
     }
@@ -94,8 +96,7 @@ fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String
     let json = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
-    fs::write(&settings_path, json)
-        .map_err(|e| format!("Failed to write settings file: {}", e))?;
+    fs::write(&settings_path, json).map_err(|e| format!("Failed to write settings file: {}", e))?;
 
     Ok(())
 }
@@ -173,7 +174,7 @@ mod tests {
     #[test]
     fn test_always_on_top_default() {
         let settings = Settings::default();
-        assert_eq!(settings.always_on_top, true);
+        assert!(settings.always_on_top);
     }
 
     #[test]
@@ -215,14 +216,17 @@ mod tests {
         assert_eq!(settings.images.typing2, "path2.png");
         assert_eq!(settings.images.idle, "idle.png");
         assert_eq!(settings.opacity, 0.8);
-        assert_eq!(settings.always_on_top, false);
+        assert!(!settings.always_on_top);
     }
 
     #[test]
     fn test_settings_round_trip() {
         let original = Settings {
             window_position: WindowPosition { x: 123, y: 456 },
-            window_size: WindowSize { width: 250, height: 250 },
+            window_size: WindowSize {
+                width: 250,
+                height: 250,
+            },
             animation_speed: 100,
             images: ImagePaths {
                 typing1: "test1.png".to_string(),
@@ -255,8 +259,16 @@ mod tests {
         let max_speed = 500;
         let default_speed = Settings::default().animation_speed;
 
-        assert!(default_speed >= min_speed, "Default animation speed should be >= {}", min_speed);
-        assert!(default_speed <= max_speed, "Default animation speed should be <= {}", max_speed);
+        assert!(
+            default_speed >= min_speed,
+            "Default animation speed should be >= {}",
+            min_speed
+        );
+        assert!(
+            default_speed <= max_speed,
+            "Default animation speed should be <= {}",
+            max_speed
+        );
     }
 
     #[test]

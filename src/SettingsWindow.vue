@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
+import { onMounted, ref } from "vue";
 import type { Settings } from "./types/settings";
 import { DEFAULT_SETTINGS } from "./types/settings";
 
@@ -78,9 +78,10 @@ onMounted(() => {
       <h2>Mascot Images</h2>
       <div class="image-settings">
         <div class="image-item">
-          <label>Typing Image 1:</label>
+          <label for="image-typing1">Typing Image 1:</label>
           <div class="image-input-group">
             <InputText
+              id="image-typing1"
               v-model="settings.images.typing1"
               placeholder="No image selected"
               readonly
@@ -90,9 +91,10 @@ onMounted(() => {
         </div>
 
         <div class="image-item">
-          <label>Typing Image 2:</label>
+          <label for="image-typing2">Typing Image 2:</label>
           <div class="image-input-group">
             <InputText
+              id="image-typing2"
               v-model="settings.images.typing2"
               placeholder="No image selected"
               readonly
@@ -102,9 +104,10 @@ onMounted(() => {
         </div>
 
         <div class="image-item">
-          <label>Idle Image:</label>
+          <label for="image-idle">Idle Image:</label>
           <div class="image-input-group">
             <InputText
+              id="image-idle"
               v-model="settings.images.idle"
               placeholder="No image selected"
               readonly
@@ -118,9 +121,12 @@ onMounted(() => {
     <div class="settings-section">
       <h2>Animation Settings</h2>
       <div class="slider-container">
-        <label>Animation Speed (ms/frame): {{ settings.animationSpeed }}</label>
+        <span class="slider-label"
+          >Animation Speed (ms/frame): {{ settings.animationSpeed }}</span
+        >
         <Slider
           v-model="settings.animationSpeed"
+          aria-label="Animation Speed"
           :min="50"
           :max="500"
           :step="10"
@@ -128,9 +134,12 @@ onMounted(() => {
       </div>
 
       <div class="slider-container">
-        <label>Opacity: {{ settings.opacity.toFixed(2) }}</label>
+        <span class="slider-label"
+          >Opacity: {{ settings.opacity.toFixed(2) }}</span
+        >
         <Slider
           v-model="settings.opacity"
+          aria-label="Opacity"
           :min="0"
           :max="1"
           :step="0.01"
@@ -145,30 +154,44 @@ onMounted(() => {
           <Checkbox
             v-model="settings.alwaysOnTop"
             :binary="true"
-            inputId="alwaysOnTop"
+            input-id="alwaysOnTop"
           />
           <label for="alwaysOnTop">Always on Top</label>
         </div>
 
         <div class="position-settings">
           <div class="input-group">
-            <label>X Position:</label>
-            <InputNumber v-model="settings.windowPosition.x" />
+            <label for="position-x">X Position:</label>
+            <InputNumber
+              v-model="settings.windowPosition.x"
+              input-id="position-x"
+            />
           </div>
           <div class="input-group">
-            <label>Y Position:</label>
-            <InputNumber v-model="settings.windowPosition.y" />
+            <label for="position-y">Y Position:</label>
+            <InputNumber
+              v-model="settings.windowPosition.y"
+              input-id="position-y"
+            />
           </div>
         </div>
 
         <div class="position-settings">
           <div class="input-group">
-            <label>Width:</label>
-            <InputNumber v-model="settings.windowSize.width" :min="100" />
+            <label for="window-width">Width:</label>
+            <InputNumber
+              v-model="settings.windowSize.width"
+              input-id="window-width"
+              :min="100"
+            />
           </div>
           <div class="input-group">
-            <label>Height:</label>
-            <InputNumber v-model="settings.windowSize.height" :min="100" />
+            <label for="window-height">Height:</label>
+            <InputNumber
+              v-model="settings.windowSize.height"
+              input-id="window-height"
+              :min="100"
+            />
           </div>
         </div>
       </div>
@@ -243,7 +266,7 @@ h2 {
   margin-bottom: 20px;
 }
 
-.slider-container label {
+.slider-container .slider-label {
   display: block;
   margin-bottom: 10px;
   font-weight: 500;
