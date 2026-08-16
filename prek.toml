@@ -1,0 +1,28 @@
+[[repos]]
+repo = "local"
+
+# Rustコードを整形する(修正が入った場合は再ステージして再コミットが必要)
+[[repos.hooks]]
+id = "cargo-fmt"
+name = "cargo fmt"
+language = "system"
+entry = "cargo fmt --manifest-path src-tauri/Cargo.toml"
+pass_filenames = false
+files = '\.rs$'
+
+# Rustのlint(警告はエラー扱い)
+[[repos.hooks]]
+id = "cargo-clippy"
+name = "cargo clippy"
+language = "system"
+entry = "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings"
+pass_filenames = false
+files = '^src-tauri/'
+
+# TS/Vue等のlintとformat(自動修正型。修正が入った場合は再ステージして再コミットが必要)
+[[repos.hooks]]
+id = "biome-check"
+name = "biome check"
+language = "system"
+entry = "pnpm exec biome check --write --no-errors-on-unmatched"
+files = '\.(ts|tsx|js|jsx|vue|json|jsonc|css|html)$'
