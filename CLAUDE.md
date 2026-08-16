@@ -29,6 +29,10 @@ Key locations:
 
 - `src-tauri/src/lib.rs` — Rust backend: `Settings` struct (serde, camelCase rename to match the frontend), Tauri commands for loading/saving settings as JSON in the app config directory, and the unit tests.
 - `src/types/settings.ts` — TypeScript counterparts of the settings types (`Settings`, `WindowPosition`, `WindowSize`, `ImagePaths`). Keep these in sync with the Rust structs.
+- `src-tauri/src/png.rs` — hand-rolled PNG signature/IHDR validation (512px dimension cap)
+- `src-tauri/src/images.rs` — image registration/loading commands; copies validated PNGs into the app data `images/` dir under fixed names
+- `src/components/ImageSlot.vue` — image slot UI (preview, select, clear) used by the settings window
+- `src/windowSettings.ts` — applies persisted settings to the native main window
 - PrimeVue components are auto-imported via `unplugin-vue-components` (see `vite.config.ts`, generated `components.d.ts`).
 
 Windows communicate through the Tauri event system; settings changes propagate from the settings window to the main window, and main-window drag positions propagate back.
