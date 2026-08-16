@@ -12,9 +12,17 @@ vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  emit: vi.fn(),
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
 import { invoke } from "@tauri-apps/api/core";
+import { emit as emitEvent, listen } from "@tauri-apps/api/event";
 
 const invokeMock = vi.mocked(invoke);
+const emitEventMock = vi.mocked(emitEvent);
+const listenMock = vi.mocked(listen);
 
 function mountSettingsWindow() {
   return mount(SettingsWindow, {
@@ -42,6 +50,8 @@ beforeEach(() => {
     }
     return undefined;
   });
+  emitEventMock.mockReset();
+  listenMock.mockClear();
 });
 
 describe("SettingsWindow reset", () => {
@@ -67,17 +77,67 @@ describe("SettingsWindow reset", () => {
 });
 
 describe("SettingsWindow image inputs", () => {
-  test("renders an input with a label for each image slot", async () => {
+  test("renders an image slot for each image type", async () => {
     const wrapper = mountSettingsWindow();
     await flushPromises();
 
-    for (const id of ["image-typing1", "image-typing2", "image-idle"]) {
-      expect(wrapper.find(`#${id}`).exists(), `#${id} should exist`).toBe(true);
-      expect(
-        wrapper.find(`label[for="${id}"]`).exists(),
-        `label for ${id} should exist`,
-      ).toBe(true);
+    const labels = ["Typing Image 1", "Typing Image 2", "Idle Image"];
+    for (const label of labels) {
+      expect(wrapper.text()).toContain(label);
     }
+    expect(wrapper.findAll(".image-slot")).toHaveLength(3);
+  });
+});
+
+describe("SettingsWindow save event", () => {
+  test("emits settings-updated with the saved settings", async () => {
+    const wrapper = mountSettingsWindow();
+    await flushPromises();
+
+    await findButtonByLabel(wrapper, "Save Settings").trigger("click");
+    await flushPromises();
+
+    expect(emitEventMock).toHaveBeenCalledWith(
+      "settings-updated",
+      expect.objectContaining({ animationSpeed: 200 }),
+    );
+  });
+
+  test("does not emit when saving fails", async () => {
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return createDefaultSettings();
+      if (cmd === "save_settings") throw new Error("disk full");
+      return undefined;
+    });
+
+    const wrapper = mountSettingsWindow();
+    await flushPromises();
+
+    await findButtonByLabel(wrapper, "Save Settings").trigger("click");
+    await flushPromises();
+
+    expect(emitEventMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("SettingsWindow position sync", () => {
+  test("updates the position form when position-changed arrives", async () => {
+    const wrapper = mountSettingsWindow();
+    await flushPromises();
+
+    const call = listenMock.mock.calls.find(
+      ([eventName]) => eventName === "position-changed",
+    );
+    expect(call, "should listen for position-changed").toBeDefined();
+    const handler = call?.[1] as (event: {
+      payload: { x: number; y: number };
+    }) => void;
+
+    handler({ payload: { x: 321, y: 654 } });
+    await flushPromises();
+
+    const xInput = wrapper.find<HTMLInputElement>("#position-x");
+    expect(xInput.element.value).toBe("321");
   });
 });
 

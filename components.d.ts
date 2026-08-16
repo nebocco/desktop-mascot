@@ -13,8 +13,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     Button: typeof import('primevue/button')['default']
     Checkbox: typeof import('primevue/checkbox')['default']
+    ImageSlot: typeof import('./src/components/ImageSlot.vue')['default']
     InputNumber: typeof import('primevue/inputnumber')['default']
-    InputText: typeof import('primevue/inputtext')['default']
     Slider: typeof import('primevue/slider')['default']
   }
 }

@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import { invoke } from "@tauri-apps/api/core";
-import { open } from "@tauri-apps/plugin-dialog";
-import { onMounted, ref } from "vue";
-import type { Settings } from "./types/settings";
+import {
+  emit as emitEvent,
+  listen,
+  type UnlistenFn,
+} from "@tauri-apps/api/event";
+import { onMounted, onUnmounted, ref } from "vue";
+import { POSITION_CHANGED_EVENT, SETTINGS_UPDATED_EVENT } from "./constants";
+import type { Settings, WindowPosition } from "./types/settings";
 import { createDefaultSettings, sanitizeSettings } from "./types/settings";
 
 const settings = ref<Settings>(createDefaultSettings());
@@ -35,6 +40,8 @@ async function saveSettings() {
     // InputNumberの空入力によるnullを保存前に補完する
     settings.value = sanitizeSettings(settings.value);
     await invoke("save_settings", { settings: settings.value });
+    // メインウィンドウは保存済みの設定だけを反映する
+    await emitEvent(SETTINGS_UPDATED_EVENT, settings.value);
     showStatus("Settings saved");
   } catch (error) {
     showStatus(`Failed to save settings: ${error}`, true);
@@ -61,29 +68,21 @@ const imageSlots = [
   { key: "idle", label: "Idle Image" },
 ] as const;
 
-// 画像ファイルの選択
-async function selectImage(imageType: "typing1" | "typing2" | "idle") {
-  try {
-    const selected = await open({
-      multiple: false,
-      filters: [
-        {
-          name: "Image",
-          extensions: ["png", "jpg", "jpeg"],
-        },
-      ],
-    });
+let unlistenPosition: UnlistenFn | undefined;
 
-    if (selected && typeof selected === "string") {
-      settings.value.images[imageType] = selected;
-    }
-  } catch (error) {
-    console.error("Failed to select image:", error);
-  }
-}
+onMounted(async () => {
+  await loadSettings();
+  // メインウィンドウのドラッグ結果をフォームへ即時反映する
+  unlistenPosition = await listen<WindowPosition>(
+    POSITION_CHANGED_EVENT,
+    (event) => {
+      settings.value.windowPosition = event.payload;
+    },
+  );
+});
 
-onMounted(() => {
-  loadSettings();
+onUnmounted(() => {
+  unlistenPosition?.();
 });
 </script>
 
@@ -94,18 +93,14 @@ onMounted(() => {
     <div class="settings-section">
       <h2>Mascot Images</h2>
       <div class="image-settings">
-        <div v-for="slot in imageSlots" :key="slot.key" class="image-item">
-          <label :for="`image-${slot.key}`">{{ slot.label }}:</label>
-          <div class="image-input-group">
-            <InputText
-              :id="`image-${slot.key}`"
-              v-model="settings.images[slot.key]"
-              placeholder="No image selected"
-              readonly
-            />
-            <Button label="Select" @click="selectImage(slot.key)" />
-          </div>
-        </div>
+        <ImageSlot
+          v-for="slot in imageSlots"
+          :key="slot.key"
+          v-model="settings.images[slot.key]"
+          :label="slot.label"
+          :image-type="slot.key"
+          @error="(message: string) => showStatus(message, true)"
+        />
       </div>
     </div>
 
@@ -248,22 +243,6 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 15px;
-}
-
-.image-item {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.image-item label {
-  font-weight: 500;
-  color: #666;
-}
-
-.image-input-group {
-  display: flex;
-  gap: 10px;
 }
 
 .slider-container {
