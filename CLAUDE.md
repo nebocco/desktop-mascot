@@ -42,4 +42,6 @@ Windows communicate through the Tauri event system; settings changes propagate f
 
 - `docs/specification.md` — application specification (Japanese)
 - `docs/tasks.md` — overall task list
-- `.tmp/design.md` / `.tmp/task.md` — current phase design and detailed sub-tasks (gitignored working documents; keep `task.md` updated as work progresses)
+- `docs/specs/<stub>.md` — design specs, one per unit of work (committed; written via the brainstorming workflow before implementation)
+- `docs/plans/<stub>.md` — implementation plans derived from specs (committed; keep task checkboxes updated as work progresses)
+- `.tmp/design.md` / `.tmp/task.md` — temporary working documents for reviewing, hotfixing, etc. if the task is not that complicated, you can use this directory to record your temporal memory. (gitignored)
