@@ -1,3 +1,4 @@
+mod images;
 mod png;
 
 use serde::{Deserialize, Serialize};
@@ -127,7 +128,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_settings,
             save_settings,
-            reset_settings
+            reset_settings,
+            images::register_image,
+            images::load_image
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

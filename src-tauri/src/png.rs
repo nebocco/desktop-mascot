@@ -1,15 +1,12 @@
 /// Maximum allowed width/height in pixels for mascot images.
-#[allow(dead_code)]
 pub const MAX_DIMENSION: u32 = 512;
 
-#[allow(dead_code)]
 const PNG_SIGNATURE: [u8; 8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
 /// Validates PNG bytes and returns `(width, height)` on success.
 ///
 /// Only the signature and the IHDR header are inspected; full decoding is
 /// unnecessary because the webview performs the actual rendering.
-#[allow(dead_code)]
 pub fn validate_png(bytes: &[u8]) -> Result<(u32, u32), String> {
     // PNGは先頭にシグネチャ8バイト+IHDRチャンク(長さ4+種別4+幅4+高さ4)が
     // 固定で並ぶため、最低24バイトを要求する
