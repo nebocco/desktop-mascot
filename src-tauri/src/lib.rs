@@ -1,3 +1,5 @@
+mod png;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::Manager;
