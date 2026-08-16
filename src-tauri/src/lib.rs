@@ -82,6 +82,15 @@ fn parse_settings_or_default(contents: &str) -> Settings {
     serde_json::from_str(contents).unwrap_or_else(|_| Settings::default())
 }
 
+/// Replaces only the window position in the given settings JSON,
+/// preserving every other field.
+fn settings_json_with_position(contents: &str, x: i32, y: i32) -> Result<String, String> {
+    let mut settings = parse_settings_or_default(contents);
+    settings.window_position = WindowPosition { x, y };
+    serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))
+}
+
 #[tauri::command]
 fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let settings_path = settings_path(&app)?;
@@ -120,6 +129,20 @@ fn reset_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     Ok(Settings::default())
 }
 
+/// Persists only the main window's position without touching other
+/// settings, so unsaved edits in the settings window are not clobbered.
+#[tauri::command]
+fn save_window_position(app: tauri::AppHandle, x: i32, y: i32) -> Result<(), String> {
+    let path = settings_path(&app)?;
+    let contents = if path.exists() {
+        fs::read_to_string(&path).map_err(|e| format!("Failed to read settings file: {}", e))?
+    } else {
+        String::new()
+    };
+    let json = settings_json_with_position(&contents, x, y)?;
+    fs::write(&path, json).map_err(|e| format!("Failed to write settings file: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -129,6 +152,7 @@ pub fn run() {
             get_settings,
             save_settings,
             reset_settings,
+            save_window_position,
             images::register_image,
             images::load_image
         ])
@@ -385,5 +409,30 @@ mod tests {
 
         assert!(default_opacity >= 0.0, "Default opacity should be >= 0.0");
         assert!(default_opacity <= 1.0, "Default opacity should be <= 1.0");
+    }
+
+    #[test]
+    fn test_settings_json_with_position_updates_only_position() {
+        // 設定ウィンドウで編集中の他フィールドを上書きしないことを担保する
+        let json = r#"{"animationSpeed": 300, "opacity": 0.5}"#;
+        let result = settings_json_with_position(json, 42, 84).unwrap();
+        let settings: Settings = serde_json::from_str(&result).unwrap();
+        assert_eq!(settings.window_position.x, 42);
+        assert_eq!(settings.window_position.y, 84);
+        assert_eq!(settings.animation_speed, 300);
+        assert_eq!(settings.opacity, 0.5);
+    }
+
+    #[test]
+    fn test_settings_json_with_position_works_on_empty_contents() {
+        // 設定ファイル未作成の状態でドラッグされてもデフォルト+新位置で保存できる
+        let result = settings_json_with_position("", 10, 20).unwrap();
+        let settings: Settings = serde_json::from_str(&result).unwrap();
+        assert_eq!(settings.window_position.x, 10);
+        assert_eq!(settings.window_position.y, 20);
+        assert_eq!(
+            settings.animation_speed,
+            Settings::default().animation_speed
+        );
     }
 }
