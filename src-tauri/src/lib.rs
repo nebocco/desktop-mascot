@@ -332,6 +332,9 @@ mod tests {
             "core:window:allow-start-dragging",
             "core:window:allow-show",
             "core:window:allow-set-focus",
+            "core:window:allow-set-position",
+            "core:window:allow-set-size",
+            "core:window:allow-set-always-on-top",
             "dialog:default",
         ] {
             assert!(
