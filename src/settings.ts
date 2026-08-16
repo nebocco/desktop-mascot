@@ -1,9 +1,9 @@
 import Aura from "@primeuix/themes/aura";
 import PrimeVue from "primevue/config";
 import { createApp } from "vue";
-import App from "./App.vue";
+import SettingsWindow from "./SettingsWindow.vue";
 
-const app = createApp(App);
+const app = createApp(SettingsWindow);
 app.use(PrimeVue, {
   theme: {
     preset: Aura,

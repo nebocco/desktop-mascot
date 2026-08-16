@@ -12,8 +12,9 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     Button: typeof import('primevue/button')['default']
-    ColorPicker: typeof import('primevue/colorpicker')['default']
-    FileUpload: typeof import('primevue/fileupload')['default']
+    Checkbox: typeof import('primevue/checkbox')['default']
+    InputNumber: typeof import('primevue/inputnumber')['default']
     InputText: typeof import('primevue/inputtext')['default']
+    Slider: typeof import('primevue/slider')['default']
   }
 }

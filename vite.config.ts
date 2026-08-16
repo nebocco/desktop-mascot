@@ -1,18 +1,30 @@
-import { defineConfig } from "vite";
+import { resolve } from "node:path";
+import { PrimeVueResolver } from "@primevue/auto-import-resolver";
 import vue from "@vitejs/plugin-vue";
-import Components from 'unplugin-vue-components/vite';
-import { PrimeVueResolver } from '@primevue/auto-import-resolver';
+import Components from "unplugin-vue-components/vite";
+import { defineConfig } from "vite";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [vue(),
-  Components({
-    resolvers: [PrimeVueResolver()],
-  })
+  plugins: [
+    vue(),
+    Components({
+      resolvers: [PrimeVueResolver()],
+    }),
   ],
+
+  // Multi-page app configuration
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, "index.html"),
+        settings: resolve(__dirname, "settings.html"),
+      },
+    },
+  },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
@@ -25,10 +37,10 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host
       ? {
-        protocol: "ws",
-        host,
-        port: 1421,
-      }
+          protocol: "ws",
+          host,
+          port: 1421,
+        }
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
