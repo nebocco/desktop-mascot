@@ -88,7 +88,7 @@ describe("ImageSlot selection", () => {
     ]);
   });
 
-  test("emits an error message when validation fails", async () => {
+  test("shows the validation error inside the slot", async () => {
     openMock.mockResolvedValue("/home/user/huge.png");
     invokeMock.mockImplementation(async (cmd: string) => {
       if (cmd === "register_image") {
@@ -103,7 +103,10 @@ describe("ImageSlot selection", () => {
     await flushPromises();
 
     expect(wrapper.emitted("update:modelValue")).toBeUndefined();
-    expect(wrapper.emitted("error")?.at(-1)?.[0]).toContain("600x600");
+    // エラーは画面下部のステータスではなく、対象スロットの直下に出す
+    const error = wrapper.find(".image-slot-error");
+    expect(error.exists()).toBe(true);
+    expect(error.text()).toContain("600x600");
   });
 
   test("does nothing when the dialog is cancelled", async () => {

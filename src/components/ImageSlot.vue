@@ -12,10 +12,11 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:modelValue": [value: string];
-  error: [message: string];
 }>();
 
 const previewUrl = ref<string | null>(null);
+// 検証エラーは画面下部のステータスではなく、対象スロットの直下に出す
+const errorMessage = ref("");
 
 // パスが変わるたびにプレビューを読み直す
 watchEffect(async () => {
@@ -30,6 +31,7 @@ async function selectImage() {
   if (typeof selected !== "string") {
     return;
   }
+  errorMessage.value = "";
   try {
     // 検証とアプリ管理ディレクトリへのコピーはRust側が行う
     const storedPath = await invoke<string>("register_image", {
@@ -41,11 +43,12 @@ async function selectImage() {
     // プレビューはここで明示的に読み直す
     previewUrl.value = await loadImageDataUrl(storedPath);
   } catch (error) {
-    emit("error", String(error));
+    errorMessage.value = String(error);
   }
 }
 
 function clearImage() {
+  errorMessage.value = "";
   emit("update:modelValue", "");
 }
 </script>
@@ -71,6 +74,9 @@ function clearImage() {
         />
       </div>
     </div>
+    <p v-if="errorMessage" class="image-slot-error" role="alert">
+      {{ errorMessage }}
+    </p>
   </div>
 </template>
 
@@ -116,5 +122,11 @@ function clearImage() {
 .image-slot-actions {
   display: flex;
   gap: 10px;
+}
+
+.image-slot-error {
+  margin: 0;
+  font-size: 13px;
+  color: #c62828;
 }
 </style>
