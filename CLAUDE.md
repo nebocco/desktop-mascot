@@ -31,6 +31,12 @@ superpowers skill の設計に従う。実装の着手前に spec と plan を�
 
 新規の設計・計画ドキュメントは `docs/spec/`,  `docs/plan/` 配下に日付プレフィックス付き(`YYYY-MM-DD-<topic>.md`)で置く。`docs/` 直下や `docs/superpowers/`, 機能別ディレクトリには置かない。`docs/archive/` は参照専用の歴史的記録なので更新しない。
 
+## git とリモートアクセス
+
+- `develop` がデフォルト。`main` はリリース用のタグを打つためだけに使う
+- spec / plan の実装を始めるときは `develop` から新しいブランチを切り、終了時にローカルで `develop` にマージする
+- **`git` コマンドは passphrase 付きの SSH key を使うため Coding Agent からは実行できない。`gh` コマンドで HTTPS 経由でアクセスする**（`gh auth login` は認証済み）
+- issue を立てるほどでもない積み残し（既知の限界・後回しにした判断・軽微な整理）は [docs/backlog.md](docs/backlog.md) に書く。issue と重複させない。
 
 ## 機械チェックとの付き合い方
 
