@@ -53,6 +53,7 @@ beforeEach(() => {
   getCurrentWindowMock.mockReturnValue(windowStub as any);
   invokeMock.mockImplementation(async (cmd: string) => {
     if (cmd === "get_settings") return createDefaultSettings();
+    if (cmd === "supports_window_positioning") return true;
     return undefined;
   });
 });
@@ -97,6 +98,7 @@ describe("App settings application", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_settings");
     expect(applyWindowSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({ animationSpeed: 200 }),
+      { positioning: true },
     );
   });
 
@@ -106,6 +108,7 @@ describe("App settings application", () => {
     invokeMock.mockImplementation(async (cmd: string) => {
       if (cmd === "get_settings") return settings;
       if (cmd === "load_image") return "QUJD";
+      if (cmd === "supports_window_positioning") return true;
       return undefined;
     });
 
@@ -145,6 +148,7 @@ describe("App settings application", () => {
 
     expect(applyWindowSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({ opacity: 0.5 }),
+      { positioning: true },
     );
   });
 });
@@ -180,6 +184,41 @@ describe("App drag position persistence", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("App positioning capability", () => {
+  test("does not track or save positions when positioning is unsupported", async () => {
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return createDefaultSettings();
+      if (cmd === "supports_window_positioning") return false;
+      return undefined;
+    });
+
+    mount(App);
+    await flushPromises();
+
+    // 位置を報告できないバックエンドでは、偽のonMovedで保存値を壊さないよう購読自体を行わない
+    expect(windowStub.onMoved).not.toHaveBeenCalled();
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "save_window_position",
+      expect.anything(),
+    );
+  });
+
+  test("passes the positioning capability to applyWindowSettings", async () => {
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return createDefaultSettings();
+      if (cmd === "supports_window_positioning") return false;
+      return undefined;
+    });
+
+    mount(App);
+    await flushPromises();
+
+    expect(applyWindowSettingsMock).toHaveBeenCalledWith(expect.anything(), {
+      positioning: false,
+    });
   });
 });
 

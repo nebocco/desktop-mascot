@@ -7,8 +7,11 @@ import {
 } from "@tauri-apps/api/event";
 import { onMounted, onUnmounted, ref } from "vue";
 import { POSITION_CHANGED_EVENT, SETTINGS_UPDATED_EVENT } from "./constants";
+import { createLogger } from "./logger";
 import type { Settings, WindowPosition } from "./types/settings";
 import { createDefaultSettings, sanitizeSettings } from "./types/settings";
+
+const log = createLogger("settings-window");
 
 const settings = ref<Settings>(createDefaultSettings());
 const isSaving = ref(false);
@@ -25,11 +28,12 @@ function showStatus(message: string, isError = false) {
 async function loadSettings() {
   try {
     const loadedSettings = await invoke<Settings>("get_settings");
+    log.debug("settings loaded", loadedSettings);
     if (loadedSettings) {
       settings.value = loadedSettings;
     }
   } catch (error) {
-    console.error("Failed to load settings:", error);
+    log.error("Failed to load settings", String(error));
   }
 }
 
@@ -39,6 +43,7 @@ async function saveSettings() {
   try {
     // InputNumberの空入力によるnullを保存前に補完する
     settings.value = sanitizeSettings(settings.value);
+    log.debug("saving settings", settings.value);
     await invoke("save_settings", { settings: settings.value });
     // メインウィンドウは保存済みの設定だけを反映する
     await emitEvent(SETTINGS_UPDATED_EVENT, settings.value);
@@ -79,6 +84,7 @@ onMounted(async () => {
   unlistenPosition = await listen<WindowPosition>(
     POSITION_CHANGED_EVENT,
     (event) => {
+      log.debug("received position-changed", event.payload);
       settings.value.windowPosition = event.payload;
     },
   );
@@ -102,7 +108,6 @@ onUnmounted(() => {
           v-model="settings.images[slot.key]"
           :label="slot.label"
           :image-type="slot.key"
-          @error="(message: string) => showStatus(message, true)"
         />
       </div>
     </div>

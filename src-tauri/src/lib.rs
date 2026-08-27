@@ -1,9 +1,11 @@
 mod images;
+mod logging;
 mod png;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::Manager;
+use tracing::debug;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct WindowPosition {
@@ -99,8 +101,11 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
         let contents = fs::read_to_string(&settings_path)
             .map_err(|e| format!("Failed to read settings file: {}", e))?;
 
-        Ok(parse_settings_or_default(&contents))
+        let settings = parse_settings_or_default(&contents);
+        debug!(path = ?settings_path, ?settings, "loaded settings from file");
+        Ok(settings)
     } else {
+        debug!(path = ?settings_path, "settings file missing; using defaults");
         Ok(Settings::default())
     }
 }
@@ -108,6 +113,7 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 #[tauri::command]
 fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     let settings_path = settings_path(&app)?;
+    debug!(path = ?settings_path, ?settings, "saving settings");
 
     let json = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
@@ -140,12 +146,55 @@ fn save_window_position(app: tauri::AppHandle, x: i32, y: i32) -> Result<(), Str
         String::new()
     };
     let json = settings_json_with_position(&contents, x, y)?;
+    debug!(path = ?path, x, y, "persisting dragged window position");
     fs::write(&path, json).map_err(|e| format!("Failed to write settings file: {}", e))
+}
+
+/// Decides whether absolute window positioning works for a given Linux
+/// windowing environment.
+///
+/// Wayland has no notion of absolute window coordinates: position requests
+/// are silently ignored and reported positions are always (0, 0).
+/// `GDK_BACKEND=x11` routes GTK through Xwayland, where positioning works.
+fn positioning_supported_on_linux(
+    wayland_display: Option<&str>,
+    gdk_backend: Option<&str>,
+) -> bool {
+    if gdk_backend == Some("x11") {
+        return true;
+    }
+    !matches!(wayland_display, Some(display) if !display.is_empty())
+}
+
+/// Reports whether the running windowing backend can set and read back
+/// absolute window positions.
+#[tauri::command]
+fn supports_window_positioning() -> bool {
+    if !cfg!(target_os = "linux") {
+        return true;
+    }
+    let wayland_display = std::env::var("WAYLAND_DISPLAY").ok();
+    let gdk_backend = std::env::var("GDK_BACKEND").ok();
+    let supported =
+        positioning_supported_on_linux(wayland_display.as_deref(), gdk_backend.as_deref());
+    debug!(
+        ?wayland_display,
+        ?gdk_backend,
+        supported,
+        "window positioning capability"
+    );
+    supported
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    logging::init();
+
     tauri::Builder::default()
+        .setup(|app| {
+            logging::log_window_environment(app.handle());
+            Ok(())
+        })
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -153,8 +202,10 @@ pub fn run() {
             save_settings,
             reset_settings,
             save_window_position,
+            supports_window_positioning,
             images::register_image,
-            images::load_image
+            images::load_image,
+            logging::log_frontend
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -163,6 +214,25 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_positioning_unsupported_under_wayland() {
+        assert!(!positioning_supported_on_linux(Some("wayland-0"), None));
+    }
+
+    #[test]
+    fn test_positioning_supported_when_gdk_backend_is_x11() {
+        assert!(positioning_supported_on_linux(
+            Some("wayland-0"),
+            Some("x11")
+        ));
+    }
+
+    #[test]
+    fn test_positioning_supported_on_plain_x11_session() {
+        assert!(positioning_supported_on_linux(None, None));
+        assert!(positioning_supported_on_linux(Some(""), None));
+    }
 
     #[test]
     fn test_window_position_default() {
