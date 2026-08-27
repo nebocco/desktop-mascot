@@ -5,7 +5,7 @@ mod png;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tauri::Manager;
-use tracing::debug;
+use tracing::{debug, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct WindowPosition {
@@ -86,8 +86,17 @@ fn parse_settings_or_default(contents: &str) -> Settings {
 
 /// Replaces only the window position in the given settings JSON,
 /// preserving every other field.
+///
+/// Fails instead of falling back to defaults when the contents cannot be
+/// parsed. Unlike reading, writing back a default would destroy a file
+/// the user could still repair by hand.
 fn settings_json_with_position(contents: &str, x: i32, y: i32) -> Result<String, String> {
-    let mut settings = parse_settings_or_default(contents);
+    let mut settings = if contents.trim().is_empty() {
+        Settings::default()
+    } else {
+        serde_json::from_str(contents)
+            .map_err(|e| format!("Refusing to overwrite unparsable settings file: {}", e))?
+    };
     settings.window_position = WindowPosition { x, y };
     serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))
@@ -119,6 +128,17 @@ fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
     fs::write(&settings_path, json).map_err(|e| format!("Failed to write settings file: {}", e))?;
+
+    // 画像は選択された時点でコピー済みなので、保存が確定したこの時点で
+    // 参照されなくなったファイルを片付ける
+    let referenced = [
+        settings.images.typing1.clone(),
+        settings.images.typing2.clone(),
+        settings.images.idle.clone(),
+    ];
+    if let Err(error) = images::prune_unreferenced_images(&app, &referenced) {
+        warn!(%error, "failed to prune unreferenced images");
+    }
 
     Ok(())
 }
@@ -494,6 +514,21 @@ mod tests {
         assert_eq!(settings.window_position.y, 84);
         assert_eq!(settings.animation_speed, 300);
         assert_eq!(settings.opacity, 0.5);
+    }
+
+    #[test]
+    fn test_settings_json_with_position_refuses_to_overwrite_broken_file() {
+        // 壊れた設定ファイルをドラッグ操作でデフォルト値に潰さない。
+        // 読み取り側と違い書き戻し側のフォールバックは破壊的なため中止する
+        assert!(settings_json_with_position("{ this is not json", 1, 2).is_err());
+    }
+
+    #[test]
+    fn test_settings_json_with_position_treats_blank_contents_as_new_file() {
+        // 空白のみのファイルは「未作成」と同じ扱いにする
+        let result = settings_json_with_position("   \n", 10, 20).unwrap();
+        let settings: Settings = serde_json::from_str(&result).unwrap();
+        assert_eq!(settings.window_position.x, 10);
     }
 
     #[test]

@@ -24,24 +24,24 @@ watchEffect(async () => {
 });
 
 async function selectImage() {
-  const selected = await open({
-    multiple: false,
-    filters: [{ name: "PNG Image", extensions: ["png"] }],
-  });
-  if (typeof selected !== "string") {
-    return;
-  }
   errorMessage.value = "";
   try {
+    // ダイアログを開けない環境ではopen()自体がrejectするため、これもtry内に置く
+    const selected = await open({
+      multiple: false,
+      filters: [{ name: "PNG Image", extensions: ["png"] }],
+    });
+    if (typeof selected !== "string") {
+      return;
+    }
     // 検証とアプリ管理ディレクトリへのコピーはRust側が行う
     const storedPath = await invoke<string>("register_image", {
       imageType: props.imageType,
       sourcePath: selected,
     });
+    // 保存名は画像の内容から決まる。別画像を選べばパスが変わるので、
+    // プレビューの読み直しはwatchEffectに任せられる
     emit("update:modelValue", storedPath);
-    // 固定名への上書きコピーではパス文字列が変わらず親のv-model更新が発火しないため、
-    // プレビューはここで明示的に読み直す
-    previewUrl.value = await loadImageDataUrl(storedPath);
   } catch (error) {
     errorMessage.value = String(error);
   }

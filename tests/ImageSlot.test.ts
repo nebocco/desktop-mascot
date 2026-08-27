@@ -109,6 +109,21 @@ describe("ImageSlot selection", () => {
     expect(error.text()).toContain("600x600");
   });
 
+  test("shows an error when the file dialog itself fails", async () => {
+    // ダイアログを開けない環境ではopen()がrejectする。捕まえないと
+    // 未処理のPromise拒否になり、ユーザーには無反応にしか見えない
+    openMock.mockRejectedValue(new Error("dialog unavailable"));
+
+    const wrapper = mountSlot("");
+    await flushPromises();
+    await findButtonByLabel(wrapper, "Select").trigger("click");
+    await flushPromises();
+
+    const error = wrapper.find(".image-slot-error");
+    expect(error.exists()).toBe(true);
+    expect(error.text()).toContain("dialog unavailable");
+  });
+
   test("does nothing when the dialog is cancelled", async () => {
     openMock.mockResolvedValue(null);
     const wrapper = mountSlot("");
@@ -123,21 +138,20 @@ describe("ImageSlot selection", () => {
 });
 
 describe("ImageSlot re-registration", () => {
-  test("reloads the preview when register_image returns the same stored path", async () => {
-    // register_imageは固定名へ上書きコピーするため、同一スロットの再登録では
-    // 返り値のパス文字列が変わらない。その場合でもプレビューが更新されることを確認する。
-    let loadImageCallCount = 0;
-    invokeMock.mockImplementation(async (cmd: string) => {
+  test("registering a different image yields a different stored path", async () => {
+    // register_imageは内容から決まる名前で保存するため、別画像を選ぶと
+    // パスが変わり、未保存の選択が既存ファイルを壊さない
+    invokeMock.mockImplementation(async (cmd: string, args?: unknown) => {
       if (cmd === "load_image") {
-        loadImageCallCount += 1;
-        return loadImageCallCount === 1 ? "OLD" : "NEW";
+        const { path } = args as { path: string };
+        return path.includes("new") ? "NEW" : "OLD";
       }
-      if (cmd === "register_image") return "/data/images/idle.png";
+      if (cmd === "register_image") return "/data/images/idle-new.png";
       return undefined;
     });
     openMock.mockResolvedValue("/home/user/new-pic.png");
 
-    const wrapper = mountSlot("/data/images/idle.png");
+    const wrapper = mountSlot("/data/images/idle-old.png");
     await flushPromises();
     expect(wrapper.find("img").attributes("src")).toBe(
       "data:image/png;base64,OLD",
@@ -147,8 +161,12 @@ describe("ImageSlot re-registration", () => {
     await flushPromises();
 
     expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual([
-      "/data/images/idle.png",
+      "/data/images/idle-new.png",
     ]);
+
+    // 親のv-model反映を模す。パスが変わるのでプレビューは自然に読み直される
+    await wrapper.setProps({ modelValue: "/data/images/idle-new.png" });
+    await flushPromises();
     expect(wrapper.find("img").attributes("src")).toBe(
       "data:image/png;base64,NEW",
     );
