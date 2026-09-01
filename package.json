@@ -8,6 +8,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "dev:x11": "GDK_BACKEND=x11 pnpm tauri dev",
     "test": "pnpm test:rust && pnpm test:front",
     "test:rust": "cd src-tauri && cargo test",
     "test:front": "vitest run"
