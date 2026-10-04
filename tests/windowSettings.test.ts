@@ -72,4 +72,16 @@ describe("applyWindowSettings", () => {
     expect(windowStub.setSize).toHaveBeenCalled();
     expect(windowStub.setAlwaysOnTop).toHaveBeenCalled();
   });
+
+  test("leaves the position alone when asked not to move", async () => {
+    const settings = createDefaultSettings();
+    settings.windowPosition = { x: 10, y: 20 };
+
+    await applyWindowSettings(settings, { positioning: true }, false);
+
+    // すでにその位置にあるウィンドウへ位置を指定し直さない
+    expect(windowStub.setPosition).not.toHaveBeenCalled();
+    expect(windowStub.setSize).toHaveBeenCalled();
+    expect(windowStub.setAlwaysOnTop).toHaveBeenCalled();
+  });
 });

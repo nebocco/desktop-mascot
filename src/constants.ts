@@ -14,3 +14,9 @@ export const SETTINGS_UPDATED_EVENT = "settings-updated";
  * WindowPosition as payload.
  */
 export const POSITION_CHANGED_EVENT = "position-changed";
+
+/**
+ * Event emitted by the backend when the displayed animation frame
+ * changes, carrying the frame name as payload.
+ */
+export const ANIMATION_FRAME_EVENT = "animation-frame";

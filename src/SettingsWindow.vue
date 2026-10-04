@@ -129,6 +129,19 @@ onUnmounted(() => {
 
       <div class="slider-container">
         <span class="slider-label"
+          >Idle Timeout (ms): {{ settings.idleTimeout }}</span
+        >
+        <Slider
+          v-model="settings.idleTimeout"
+          aria-label="Idle Timeout"
+          :min="300"
+          :max="5000"
+          :step="100"
+        />
+      </div>
+
+      <div class="slider-container">
+        <span class="slider-label"
           >Opacity: {{ settings.opacity.toFixed(2) }}</span
         >
         <Slider

@@ -28,6 +28,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "../src/App.vue";
+import { ANIMATION_FRAME_EVENT } from "../src/constants";
 import { createDefaultSettings } from "../src/types/settings";
 import { applyWindowSettings } from "../src/windowSettings";
 
@@ -37,11 +38,16 @@ const emitMock = vi.mocked(emit);
 const getCurrentWindowMock = vi.mocked(getCurrentWindow);
 const applyWindowSettingsMock = vi.mocked(applyWindowSettings);
 
+// App.vueが位置の追跡に使う時刻。テストから直接進める
+let nowMs = 0;
+
 const windowStub = {
   onMoved: vi.fn(),
 };
 
 beforeEach(() => {
+  nowMs = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => nowMs);
   invokeMock.mockReset();
   listenMock.mockReset();
   listenMock.mockResolvedValue(vi.fn());
@@ -71,6 +77,7 @@ describe("App drag region", () => {
       ".mascot-container",
       ".mascot-placeholder",
       ".mascot-text",
+      ".mascot-frame-label",
     ]) {
       const el = wrapper.find(selector);
       expect(el.exists(), `${selector} should exist`).toBe(true);
@@ -99,6 +106,7 @@ describe("App settings application", () => {
     expect(applyWindowSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({ animationSpeed: 200 }),
       { positioning: true },
+      true,
     );
   });
 
@@ -146,9 +154,22 @@ describe("App settings application", () => {
     handler({ payload: updated });
     await flushPromises();
 
+    // 位置が変わらない適用ではウィンドウを動かさない
     expect(applyWindowSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({ opacity: 0.5 }),
       { positioning: true },
+      false,
+    );
+
+    const moved = createDefaultSettings();
+    moved.windowPosition = { x: 640, y: 480 };
+    handler({ payload: moved });
+    await flushPromises();
+
+    expect(applyWindowSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ windowPosition: { x: 640, y: 480 } }),
+      { positioning: true },
+      true,
     );
   });
 });
@@ -163,8 +184,10 @@ describe("App drag position persistence", () => {
       payload: { x: number; y: number };
     }) => void;
 
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     try {
+      // 起動時の位置適用の直後に届く移動は保存されないため、十分に時間を空ける
+      nowMs = 2000;
       handler({ payload: { x: 5, y: 6 } });
       handler({ payload: { x: 7, y: 8 } });
       expect(invokeMock).not.toHaveBeenCalledWith(
@@ -180,6 +203,76 @@ describe("App drag position persistence", () => {
       expect(emitMock).toHaveBeenCalledWith("position-changed", {
         x: 7,
         y: 8,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("does not save moves caused by applying settings and corrects later drags", async () => {
+    // 指定した位置と報告される位置がずれる環境で、保存のたびに
+    // ウィンドウが動いていかないことを担保する
+    const settings = createDefaultSettings();
+    settings.windowPosition = { x: 2649, y: 867 };
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return settings;
+      if (cmd === "supports_window_positioning") return true;
+      return undefined;
+    });
+    mount(App);
+    await flushPromises();
+    const handler = windowStub.onMoved.mock.calls[0][0] as (event: {
+      payload: { x: number; y: number };
+    }) => void;
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      nowMs = 10;
+      handler({ payload: { x: 2649, y: 867 } });
+      handler({ payload: { x: 2611, y: 808 } });
+      await vi.advanceTimersByTimeAsync(1500);
+      nowMs = 2000;
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "save_window_position",
+        expect.anything(),
+      );
+
+      handler({ payload: { x: 300, y: 200 } });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(invokeMock).toHaveBeenCalledWith("save_window_position", {
+        x: 338,
+        y: 259,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("App drag right after saving", () => {
+  test("saves a drag that starts right after settings were re-applied", async () => {
+    // 保存の直後にマスコットを動かしても、位置が失われないことを担保する
+    mount(App);
+    await flushPromises();
+    const moved = windowStub.onMoved.mock.calls[0][0] as (event: {
+      payload: { x: number; y: number };
+    }) => void;
+    const settingsUpdated = listenMock.mock.calls.find(
+      ([eventName]) => eventName === "settings-updated",
+    )?.[1] as unknown as (event: { payload: unknown }) => void;
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      nowMs = 2000;
+      settingsUpdated({ payload: createDefaultSettings() });
+      await vi.advanceTimersByTimeAsync(100);
+      nowMs = 2100;
+
+      moved({ payload: { x: 130, y: 120 } });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(invokeMock).toHaveBeenCalledWith("save_window_position", {
+        x: 130,
+        y: 120,
       });
     } finally {
       vi.useRealTimers();
@@ -216,9 +309,11 @@ describe("App positioning capability", () => {
     mount(App);
     await flushPromises();
 
-    expect(applyWindowSettingsMock).toHaveBeenCalledWith(expect.anything(), {
-      positioning: false,
-    });
+    expect(applyWindowSettingsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { positioning: false },
+      false,
+    );
   });
 });
 
@@ -236,5 +331,101 @@ describe("App listener cleanup", () => {
 
     expect(settingsUnlisten).toHaveBeenCalled();
     expect(movedUnlisten).toHaveBeenCalled();
+  });
+});
+
+describe("App animation", () => {
+  function mockRegisteredImages() {
+    const settings = createDefaultSettings();
+    settings.images = {
+      idle: "/data/images/idle.png",
+      typing1: "/data/images/typing1.png",
+      typing2: "/data/images/typing2.png",
+    };
+    invokeMock.mockImplementation(async (cmd: string, args?: unknown) => {
+      if (cmd === "get_settings") return settings;
+      if (cmd === "supports_window_positioning") return true;
+      // 画像ごとに違うデータを返し、どの画像が表示されているかを区別できるようにする
+      if (cmd === "load_image") return btoa((args as { path: string }).path);
+      return undefined;
+    });
+  }
+
+  function frameHandler() {
+    const call = listenMock.mock.calls.find(
+      ([name]) => name === ANIMATION_FRAME_EVENT,
+    );
+    if (!call) {
+      throw new Error("animation-frame listener was not registered");
+    }
+    return call[1] as unknown as (event: { payload: string }) => void;
+  }
+
+  function dataUrl(path: string) {
+    return `data:image/png;base64,${btoa(path)}`;
+  }
+
+  test("switches the image when an animation frame arrives", async () => {
+    mockRegisteredImages();
+    const wrapper = mount(App);
+    await flushPromises();
+    const emitFrame = frameHandler();
+
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/idle.png"),
+    );
+
+    emitFrame({ payload: "typing1" });
+    await flushPromises();
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/typing1.png"),
+    );
+
+    emitFrame({ payload: "typing2" });
+    await flushPromises();
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/typing2.png"),
+    );
+
+    emitFrame({ payload: "idle" });
+    await flushPromises();
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/idle.png"),
+    );
+  });
+
+  test("loads each image once, not on every frame", async () => {
+    mockRegisteredImages();
+    mount(App);
+    await flushPromises();
+    const emitFrame = frameHandler();
+
+    emitFrame({ payload: "typing1" });
+    emitFrame({ payload: "typing2" });
+    await flushPromises();
+
+    const loads = invokeMock.mock.calls.filter(([cmd]) => cmd === "load_image");
+    expect(loads).toHaveLength(3);
+  });
+
+  test("shows the current frame on the placeholder when no image is registered", async () => {
+    // 画像を登録しなくてもキー検知の動作を目で確認できるようにする
+    const wrapper = mount(App);
+    await flushPromises();
+    const emitFrame = frameHandler();
+    const placeholder = () => wrapper.find(".mascot-placeholder").text();
+
+    expect(placeholder()).toContain("🐱");
+    expect(placeholder()).toContain("idle");
+
+    emitFrame({ payload: "typing1" });
+    await flushPromises();
+    expect(placeholder()).toContain("😺");
+    expect(placeholder()).toContain("typing1");
+
+    emitFrame({ payload: "typing2" });
+    await flushPromises();
+    expect(placeholder()).toContain("😸");
+    expect(placeholder()).toContain("typing2");
   });
 });

@@ -21,11 +21,16 @@ Key locations:
 - `src-tauri/src/images.rs` — image registration/loading commands; copies validated PNGs into the app data `images/` dir under fixed names
 - `src/components/ImageSlot.vue` — image slot UI (preview, select, clear) used by the settings window
 - `src/windowSettings.ts` — applies persisted settings to the native main window
+- `src/windowPosition.ts` — tells user drags apart from moves the app caused, and corrects dragged positions for window managers whose reported position differs from the requested one
+- `src-tauri/src/animation/` — keyboard-driven animation: global key detection (`key_source.rs`), pure frame state machine (`logic.rs`), and the background loop that emits `animation-frame` events (`runner.rs`)
+- `src/animation.ts` — picks the image to display for the frame the backend reports
 - PrimeVue components are auto-imported via `unplugin-vue-components` (see `vite.config.ts`, generated `components.d.ts`).
 
 Windows communicate through the Tauri event system; settings changes propagate from the settings window to the main window, and main-window drag positions propagate back.
 
 ## 開発方針
+
+これは社内向けサービスであり、開発中のPJのため後方互換やデータ移行は行わず、常に理想的かつKISSなコードに書き換えて下さい。開発は以下のサイクルで行って下さい。
 
 superpowers skill の設計に従う。実装の着手前に spec と plan を作成し、実装フェーズは Subagent-Driven に行う。各スキルが定めるアーティファクトを省略せず、順序も飛ばさない。省略する場合は理由を設計ドキュメントに書く。
 
