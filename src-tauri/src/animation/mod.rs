@@ -2,6 +2,7 @@
 //! and the background loop that tells the main window which frame to show.
 
 pub mod logic;
+pub mod runner;
 
 use serde::Serialize;
 use std::time::{Duration, Instant};
