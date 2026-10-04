@@ -69,7 +69,7 @@
   - `animation::logic::on_timeout(state, now: Instant, config) -> AnimationState`
   - `animation::logic::next_wait(state, now: Instant, config) -> Option<Duration>`
 
-- [ ] **Step 1: モジュールを宣言する**
+- [x] **Step 1: モジュールを宣言する**
 
 `src-tauri/src/lib.rs` の先頭の `mod` 宣言に追加する。配線が入るまで未使用の項目で clippy が落ちないよう、このモジュールだけ `pub` にする（Task 5 で `mod` に戻す）。
 
@@ -80,7 +80,7 @@ mod logging;
 mod png;
 ```
 
-- [ ] **Step 2: 型を書く**
+- [x] **Step 2: 型を書く**
 
 `src-tauri/src/animation/mod.rs`:
 
@@ -153,7 +153,7 @@ mod tests {
 }
 ```
 
-- [ ] **Step 3: 失敗するテストを書く**
+- [x] **Step 3: 失敗するテストを書く**
 
 `src-tauri/src/animation/logic.rs`（この時点ではテストだけ）:
 
@@ -278,12 +278,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 4: テストが失敗することを確認する**
+- [x] **Step 4: テストが失敗することを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml animation::`
 Expected: コンパイルエラー（`on_key` / `on_timeout` / `next_wait` / `config_from_millis` が見つからない）
 
-- [ ] **Step 5: 実装を書く**
+- [x] **Step 5: 実装を書く**
 
 `src-tauri/src/animation/logic.rs` の `use` と `#[cfg(test)]` の間に追加する。
 
@@ -349,12 +349,12 @@ pub fn next_wait(state: AnimationState, now: Instant, config: AnimationConfig) -
 }
 ```
 
-- [ ] **Step 6: テストが通ることを確認する**
+- [x] **Step 6: テストが通ることを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml animation::`
 Expected: 10 passed
 
-- [ ] **Step 7: コミットする**
+- [x] **Step 7: コミットする**
 
 ```bash
 git add src-tauri/src/lib.rs src-tauri/src/animation/
@@ -376,7 +376,7 @@ git commit -m "Add animation frame state machine"
   - `animation::runner::update_config(shared: &SharedConfig, config: AnimationConfig)`
   - `animation::runner::run(keys: Receiver<()>, config: SharedConfig, emit: impl FnMut(Frame))`（送信側がすべて破棄されるまでブロックする）
 
-- [ ] **Step 1: モジュールを宣言する**
+- [x] **Step 1: モジュールを宣言する**
 
 `src-tauri/src/animation/mod.rs` の `pub mod logic;` の下に追加する。
 
@@ -384,7 +384,7 @@ git commit -m "Add animation frame state machine"
 pub mod runner;
 ```
 
-- [ ] **Step 2: 失敗するテストを書く**
+- [x] **Step 2: 失敗するテストを書く**
 
 `src-tauri/src/animation/runner.rs`（この時点ではテストだけ）:
 
@@ -498,12 +498,12 @@ mod tests {
 }
 ```
 
-- [ ] **Step 3: テストが失敗することを確認する**
+- [x] **Step 3: テストが失敗することを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml animation::runner`
 Expected: コンパイルエラー（`SharedConfig` / `run` / `update_config` が見つからない）
 
-- [ ] **Step 4: 実装を書く**
+- [x] **Step 4: 実装を書く**
 
 `src-tauri/src/animation/runner.rs` の `use` と `#[cfg(test)]` の間に追加する。
 
@@ -553,12 +553,12 @@ pub fn run(keys: Receiver<()>, config: SharedConfig, mut emit: impl FnMut(Frame)
 }
 ```
 
-- [ ] **Step 5: テストが通ることを確認する**
+- [x] **Step 5: テストが通ることを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml animation::`
 Expected: 14 passed
 
-- [ ] **Step 6: コミットする**
+- [x] **Step 6: コミットする**
 
 ```bash
 git add src-tauri/src/animation/
@@ -578,7 +578,7 @@ git commit -m "Add animation runner loop"
 **Interfaces:**
 - Produces: `animation::key_source::spawn(sender: std::sync::mpsc::Sender<()>)`（検知スレッドを起動してすぐ戻る。検知が止まると `sender` が破棄される）
 
-- [ ] **Step 1: ライブラリを選ぶ**
+- [x] **Step 1: ライブラリを選ぶ**
 
 候補は crates.io の `rdev` と、その派生版（`rdev` を fork したリポジトリを git 依存で使う形）。次を調べる。
 
@@ -590,7 +590,7 @@ git commit -m "Add animation runner loop"
 
 **3つのOSで動くものが見つからなければ、ここで作業を止めて報告する。** 以降のステップに進まない。
 
-- [ ] **Step 2: 依存を追加する**
+- [x] **Step 2: 依存を追加する**
 
 crates.io 版を選んだ場合:
 
@@ -604,7 +604,7 @@ cargo add rdev --manifest-path src-tauri/Cargo.toml
 rdev = { git = "<選んだリポジトリのURL>", rev = "<選んだコミットのSHA>" }
 ```
 
-- [ ] **Step 3: モジュールを宣言する**
+- [x] **Step 3: モジュールを宣言する**
 
 `src-tauri/src/animation/mod.rs` の `pub mod logic;` の上に追加する。
 
@@ -612,7 +612,7 @@ rdev = { git = "<選んだリポジトリのURL>", rev = "<選んだコミット
 pub mod key_source;
 ```
 
-- [ ] **Step 4: 実装を書く**
+- [x] **Step 4: 実装を書く**
 
 `src-tauri/src/animation/key_source.rs`:
 
@@ -644,7 +644,7 @@ pub fn spawn(sender: Sender<()>) {
 }
 ```
 
-- [ ] **Step 5: ビルドとテストが通ることを確認する**
+- [x] **Step 5: ビルドとテストが通ることを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml animation::`
 Expected: 14 passed（このタスクで自動テストは増えない。OSのフックに依存するため）
@@ -654,7 +654,7 @@ Expected: 警告なし
 
 システムライブラリの不足でビルドが失敗した場合は、不足しているパッケージ名を添えて作業を止め、報告する（`sudo` が必要なため）。
 
-- [ ] **Step 6: 選定結果を spec に追記する**
+- [x] **Step 6: 選定結果を spec に追記する**
 
 `docs/spec/2026-10-04-phase-3-animation.md` の「ライブラリの選定」節の末尾に、次の見出しで追記する。
 
@@ -666,7 +666,7 @@ Expected: 警告なし
 - 未確認: Windows と macOS での実機動作（開発環境がWSLgのため）
 ```
 
-- [ ] **Step 7: コミットする**
+- [x] **Step 7: コミットする**
 
 ```bash
 git add src-tauri/Cargo.toml src-tauri/Cargo.lock src-tauri/src/animation/ docs/spec/2026-10-04-phase-3-animation.md
@@ -688,7 +688,7 @@ git commit -m "Add global key press detection"
   - Rust: `Settings.idle_timeout: i32`（JSON上は `idleTimeout`、デフォルト1000）
   - TS: `Settings.idleTimeout: number`（デフォルト1000）
 
-- [ ] **Step 1: 失敗するテストを書く（Rust）**
+- [x] **Step 1: 失敗するテストを書く（Rust）**
 
 `src-tauri/src/lib.rs` の `mod tests` 内、`test_animation_speed_default` の下に追加する。
 
@@ -705,7 +705,7 @@ git commit -m "Add global key press detection"
     }
 ```
 
-- [ ] **Step 2: 失敗するテストを書く（TS）**
+- [x] **Step 2: 失敗するテストを書く（TS）**
 
 `tests/settings.test.ts` の `describe("createDefaultSettings", ...)` 内に追加する。
 
@@ -748,7 +748,7 @@ describe("SettingsWindow idle timeout", () => {
 });
 ```
 
-- [ ] **Step 3: テストが失敗することを確認する**
+- [x] **Step 3: テストが失敗することを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml test_idle_timeout`
 Expected: コンパイルエラー（`idle_timeout` フィールドがない）
@@ -756,7 +756,7 @@ Expected: コンパイルエラー（`idle_timeout` フィールドがない）
 Run: `pnpm exec vitest run tests/settings.test.ts tests/SettingsWindow.test.ts`
 Expected: 追加した3件が FAIL
 
-- [ ] **Step 4: Rust 側を実装する**
+- [x] **Step 4: Rust 側を実装する**
 
 `src-tauri/src/lib.rs` の `Settings` 構造体で、`animation_speed` の下にフィールドを追加する。
 
@@ -777,7 +777,7 @@ Expected: 追加した3件が FAIL
         assert_eq!(original.idle_timeout, deserialized.idle_timeout);
 ```
 
-- [ ] **Step 5: TS 側を実装する**
+- [x] **Step 5: TS 側を実装する**
 
 `src/types/settings.ts` の `Settings` インターフェースで、`animationSpeed` の下に追加する。
 
@@ -797,7 +797,7 @@ Expected: 追加した3件が FAIL
     idleTimeout: num(settings.idleTimeout, defaults.idleTimeout),
 ```
 
-- [ ] **Step 6: スライダーを追加する**
+- [x] **Step 6: スライダーを追加する**
 
 `src/SettingsWindow.vue` の Animation Speed の `slider-container`（`</div>` で閉じた直後）に追加する。
 
@@ -816,12 +816,12 @@ Expected: 追加した3件が FAIL
       </div>
 ```
 
-- [ ] **Step 7: テストが通ることを確認する**
+- [x] **Step 7: テストが通ることを確認する**
 
 Run: `pnpm test`
 Expected: Rust・フロントとも全件 PASS
 
-- [ ] **Step 8: コミットする**
+- [x] **Step 8: コミットする**
 
 ```bash
 git add src-tauri/src/lib.rs src/types/settings.ts src/SettingsWindow.vue tests/settings.test.ts tests/SettingsWindow.test.ts
@@ -844,7 +844,7 @@ git commit -m "Add idle timeout setting"
   - `Settings.idle_timeout: i32`
 - Produces: メインウィンドウ宛てのイベント `animation-frame`（ペイロードは `"idle"` / `"typing1"` / `"typing2"`）
 
-- [ ] **Step 1: 失敗するテストを書く**
+- [x] **Step 1: 失敗するテストを書く**
 
 `src-tauri/src/lib.rs` の `mod tests` 内に追加する。
 
@@ -862,12 +862,12 @@ git commit -m "Add idle timeout setting"
     }
 ```
 
-- [ ] **Step 2: テストが失敗することを確認する**
+- [x] **Step 2: テストが失敗することを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml test_animation_config`
 Expected: コンパイルエラー（`animation_config` が見つからない）
 
-- [ ] **Step 3: 設定の読み込みを関数に切り出す**
+- [x] **Step 3: 設定の読み込みを関数に切り出す**
 
 起動時にも設定を読むので、`get_settings` の本体を関数にする。`get_settings` を次の2つに置き換える。
 
@@ -895,7 +895,7 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 }
 ```
 
-- [ ] **Step 4: アニメーションの起動処理を書く**
+- [x] **Step 4: アニメーションの起動処理を書く**
 
 ファイル先頭を次のように変える（`animation` を `pub` から外し、`use` を足す）。
 
@@ -962,7 +962,7 @@ fn start_animation(app: &tauri::AppHandle) {
         })
 ```
 
-- [ ] **Step 5: 保存とリセットで設定を反映する**
+- [x] **Step 5: 保存とリセットで設定を反映する**
 
 `save_settings` のシグネチャに引数を足し、`fs::write` の直後で共有設定を更新する。
 
@@ -1008,7 +1008,7 @@ fn reset_settings(
 }
 ```
 
-- [ ] **Step 6: テストと lint が通ることを確認する**
+- [x] **Step 6: テストと lint が通ることを確認する**
 
 Run: `cargo test --manifest-path src-tauri/Cargo.toml`
 Expected: 全件 PASS
@@ -1016,7 +1016,7 @@ Expected: 全件 PASS
 Run: `cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings`
 Expected: 警告なし（`animation` を `mod` に戻しても未使用の項目が残っていないこと）
 
-- [ ] **Step 7: コミットする**
+- [x] **Step 7: コミットする**
 
 ```bash
 git add src-tauri/src/lib.rs
@@ -1039,7 +1039,7 @@ git commit -m "Run the animation loop and apply saved timing settings"
   - `ANIMATION_FRAME_EVENT`（`src/constants.ts`）
   - `Frame` / `FrameImages` / `selectFrameImage(frame: Frame, images: FrameImages): string | null`（`src/animation.ts`）
 
-- [ ] **Step 1: 失敗するテストを書く（純粋関数）**
+- [x] **Step 1: 失敗するテストを書く（純粋関数）**
 
 `tests/animation.test.ts`:
 
@@ -1070,7 +1070,7 @@ describe("selectFrameImage", () => {
 });
 ```
 
-- [ ] **Step 2: 失敗するテストを書く（App）**
+- [x] **Step 2: 失敗するテストを書く（App）**
 
 `tests/App.test.ts` の import に追加する。
 
@@ -1157,12 +1157,12 @@ describe("App animation", () => {
 });
 ```
 
-- [ ] **Step 3: テストが失敗することを確認する**
+- [x] **Step 3: テストが失敗することを確認する**
 
 Run: `pnpm exec vitest run tests/animation.test.ts tests/App.test.ts`
 Expected: `tests/animation.test.ts` は import 解決に失敗、`App animation` の2件は FAIL
 
-- [ ] **Step 4: 純粋関数とイベント名を実装する**
+- [x] **Step 4: 純粋関数とイベント名を実装する**
 
 `src/animation.ts`:
 
@@ -1200,7 +1200,7 @@ export function selectFrameImage(
 export const ANIMATION_FRAME_EVENT = "animation-frame";
 ```
 
-- [ ] **Step 5: App.vue を実装する**
+- [x] **Step 5: App.vue を実装する**
 
 `src/App.vue` の import を次のように変える（`computed`、`ANIMATION_FRAME_EVENT`、`animation` を足す）。
 
@@ -1252,7 +1252,7 @@ const mascotUrl = computed(() =>
   );
 ```
 
-- [ ] **Step 6: テストが通ることを確認する**
+- [x] **Step 6: テストが通ることを確認する**
 
 Run: `pnpm test:front`
 Expected: 全件 PASS
@@ -1260,7 +1260,7 @@ Expected: 全件 PASS
 Run: `pnpm build`
 Expected: 型エラーなしでビルド成功
 
-- [ ] **Step 7: コミットする**
+- [x] **Step 7: コミットする**
 
 ```bash
 git add src/animation.ts src/constants.ts src/App.vue tests/animation.test.ts tests/App.test.ts
@@ -1291,7 +1291,7 @@ Run: `pnpm dev:x11`
 
 うまく動かない場合は、ターミナルに `animation frame changed` と `global key listener stopped` のどちらが出ているかを添えて報告してもらう。
 
-- [ ] **Step 2: README に制約を書き足す**
+- [x] **Step 2: README に制約を書き足す**
 
 `README.md` の「### WSLg」節の末尾（「## ドキュメント」の前）に追加する。
 
@@ -1307,7 +1307,7 @@ Run: `pnpm dev:x11`
 検知を開始できない場合もアプリは起動し、マスコットはアイドル画像を表示し続けます。
 ```
 
-- [ ] **Step 3: CLAUDE.md の Key locations を更新する**
+- [x] **Step 3: CLAUDE.md の Key locations を更新する**
 
 `CLAUDE.md` の Key locations の一覧で、`src/windowSettings.ts` の行の下に追加する。
 
@@ -1316,7 +1316,7 @@ Run: `pnpm dev:x11`
 - `src/animation.ts` — picks the image to display for the frame the backend reports
 ```
 
-- [ ] **Step 4: tasks.md を更新する**
+- [x] **Step 4: tasks.md を更新する**
 
 `docs/tasks.md` のフェーズ3で、「スムーズなトランジション実装」以外の11項目を `- [x]` にする。「スムーズなトランジション実装」は次のように書き換える。
 
@@ -1324,7 +1324,7 @@ Run: `pnpm dev:x11`
 - [ ] スムーズなトランジション実装（フェーズ3ではスコープ外。即時切り替えを採用）
 ```
 
-- [ ] **Step 5: コミットする**
+- [x] **Step 5: コミットする**
 
 ```bash
 git add README.md CLAUDE.md docs/tasks.md
