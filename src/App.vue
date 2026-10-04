@@ -3,8 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit as emitEvent, listen } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import type { Frame, FrameImages } from "./animation";
+import { selectFrameImage } from "./animation";
 import {
+  ANIMATION_FRAME_EVENT,
   POSITION_CHANGED_EVENT,
   SETTINGS_UPDATED_EVENT,
   SETTINGS_WINDOW_URL,
@@ -18,7 +21,15 @@ import { applyWindowSettings } from "./windowSettings";
 
 const log = createLogger("main-window");
 
-const mascotUrl = ref<string | null>(null);
+const frameImages = ref<FrameImages>({
+  idle: null,
+  typing1: null,
+  typing2: null,
+});
+const currentFrame = ref<Frame>("idle");
+const mascotUrl = computed(() =>
+  selectFrameImage(currentFrame.value, frameImages.value),
+);
 const mascotOpacity = ref(1);
 
 // Waylandのように位置を扱えないバックエンドでは、位置の適用も保存も行わない
@@ -28,7 +39,13 @@ const capabilities: WindowCapabilities = { positioning: true };
 async function applySettings(settings: Settings) {
   log.debug("applying settings", settings);
   mascotOpacity.value = settings.opacity;
-  mascotUrl.value = await loadImageDataUrl(settings.images.idle);
+  // フレームの切り替えで読み込みを待たせないよう、3枚とも先に読み込んでおく
+  const [idle, typing1, typing2] = await Promise.all([
+    loadImageDataUrl(settings.images.idle),
+    loadImageDataUrl(settings.images.typing1),
+    loadImageDataUrl(settings.images.typing2),
+  ]);
+  frameImages.value = { idle, typing1, typing2 };
   await applyWindowSettings(settings, capabilities);
 }
 
@@ -58,6 +75,12 @@ onMounted(async () => {
       applySettings(event.payload).catch((error) => {
         log.error("Failed to apply settings", String(error));
       });
+    }),
+  );
+
+  unlisteners.push(
+    await listen<Frame>(ANIMATION_FRAME_EVENT, (event) => {
+      currentFrame.value = event.payload;
     }),
   );
 

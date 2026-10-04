@@ -28,6 +28,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import App from "../src/App.vue";
+import { ANIMATION_FRAME_EVENT } from "../src/constants";
 import { createDefaultSettings } from "../src/types/settings";
 import { applyWindowSettings } from "../src/windowSettings";
 
@@ -236,5 +237,80 @@ describe("App listener cleanup", () => {
 
     expect(settingsUnlisten).toHaveBeenCalled();
     expect(movedUnlisten).toHaveBeenCalled();
+  });
+});
+
+describe("App animation", () => {
+  function mockRegisteredImages() {
+    const settings = createDefaultSettings();
+    settings.images = {
+      idle: "/data/images/idle.png",
+      typing1: "/data/images/typing1.png",
+      typing2: "/data/images/typing2.png",
+    };
+    invokeMock.mockImplementation(async (cmd: string, args?: unknown) => {
+      if (cmd === "get_settings") return settings;
+      if (cmd === "supports_window_positioning") return true;
+      // 画像ごとに違うデータを返し、どの画像が表示されているかを区別できるようにする
+      if (cmd === "load_image") return btoa((args as { path: string }).path);
+      return undefined;
+    });
+  }
+
+  function frameHandler() {
+    const call = listenMock.mock.calls.find(
+      ([name]) => name === ANIMATION_FRAME_EVENT,
+    );
+    if (!call) {
+      throw new Error("animation-frame listener was not registered");
+    }
+    return call[1] as unknown as (event: { payload: string }) => void;
+  }
+
+  function dataUrl(path: string) {
+    return `data:image/png;base64,${btoa(path)}`;
+  }
+
+  test("switches the image when an animation frame arrives", async () => {
+    mockRegisteredImages();
+    const wrapper = mount(App);
+    await flushPromises();
+    const emitFrame = frameHandler();
+
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/idle.png"),
+    );
+
+    emitFrame({ payload: "typing1" });
+    await flushPromises();
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/typing1.png"),
+    );
+
+    emitFrame({ payload: "typing2" });
+    await flushPromises();
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/typing2.png"),
+    );
+
+    emitFrame({ payload: "idle" });
+    await flushPromises();
+    expect(wrapper.find("img.mascot-image").attributes("src")).toBe(
+      dataUrl("/data/images/idle.png"),
+    );
+  });
+
+  test("loads each image once, not on every frame", async () => {
+    mockRegisteredImages();
+    mount(App);
+    await flushPromises();
+    const emitFrame = frameHandler();
+
+    emitFrame({ payload: "typing1" });
+    emitFrame({ payload: "typing2" });
+    await flushPromises();
+
+    const loads = invokeMock.mock.calls.filter(([cmd]) => cmd === "load_image");
+    expect(loads).toHaveLength(3);
   });
 });
