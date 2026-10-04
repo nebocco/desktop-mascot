@@ -38,11 +38,16 @@ const emitMock = vi.mocked(emit);
 const getCurrentWindowMock = vi.mocked(getCurrentWindow);
 const applyWindowSettingsMock = vi.mocked(applyWindowSettings);
 
+// App.vueが位置の追跡に使う時刻。テストから直接進める
+let nowMs = 0;
+
 const windowStub = {
   onMoved: vi.fn(),
 };
 
 beforeEach(() => {
+  nowMs = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => nowMs);
   invokeMock.mockReset();
   listenMock.mockReset();
   listenMock.mockResolvedValue(vi.fn());
@@ -101,6 +106,7 @@ describe("App settings application", () => {
     expect(applyWindowSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({ animationSpeed: 200 }),
       { positioning: true },
+      true,
     );
   });
 
@@ -148,9 +154,22 @@ describe("App settings application", () => {
     handler({ payload: updated });
     await flushPromises();
 
+    // 位置が変わらない適用ではウィンドウを動かさない
     expect(applyWindowSettingsMock).toHaveBeenCalledWith(
       expect.objectContaining({ opacity: 0.5 }),
       { positioning: true },
+      false,
+    );
+
+    const moved = createDefaultSettings();
+    moved.windowPosition = { x: 640, y: 480 };
+    handler({ payload: moved });
+    await flushPromises();
+
+    expect(applyWindowSettingsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ windowPosition: { x: 640, y: 480 } }),
+      { positioning: true },
+      true,
     );
   });
 });
@@ -165,10 +184,10 @@ describe("App drag position persistence", () => {
       payload: { x: number; y: number };
     }) => void;
 
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     try {
       // 起動時の位置適用の直後に届く移動は保存されないため、十分に時間を空ける
-      await vi.advanceTimersByTimeAsync(1500);
+      nowMs = 2000;
       handler({ payload: { x: 5, y: 6 } });
       handler({ payload: { x: 7, y: 8 } });
       expect(invokeMock).not.toHaveBeenCalledWith(
@@ -206,11 +225,13 @@ describe("App drag position persistence", () => {
       payload: { x: number; y: number };
     }) => void;
 
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
     try {
+      nowMs = 10;
       handler({ payload: { x: 2649, y: 867 } });
       handler({ payload: { x: 2611, y: 808 } });
       await vi.advanceTimersByTimeAsync(1500);
+      nowMs = 2000;
       expect(invokeMock).not.toHaveBeenCalledWith(
         "save_window_position",
         expect.anything(),
@@ -221,6 +242,37 @@ describe("App drag position persistence", () => {
       expect(invokeMock).toHaveBeenCalledWith("save_window_position", {
         x: 338,
         y: 259,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("App drag right after saving", () => {
+  test("saves a drag that starts right after settings were re-applied", async () => {
+    // 保存の直後にマスコットを動かしても、位置が失われないことを担保する
+    mount(App);
+    await flushPromises();
+    const moved = windowStub.onMoved.mock.calls[0][0] as (event: {
+      payload: { x: number; y: number };
+    }) => void;
+    const settingsUpdated = listenMock.mock.calls.find(
+      ([eventName]) => eventName === "settings-updated",
+    )?.[1] as unknown as (event: { payload: unknown }) => void;
+
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    try {
+      nowMs = 2000;
+      settingsUpdated({ payload: createDefaultSettings() });
+      await vi.advanceTimersByTimeAsync(100);
+      nowMs = 2100;
+
+      moved({ payload: { x: 130, y: 120 } });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(invokeMock).toHaveBeenCalledWith("save_window_position", {
+        x: 130,
+        y: 120,
       });
     } finally {
       vi.useRealTimers();
@@ -257,9 +309,11 @@ describe("App positioning capability", () => {
     mount(App);
     await flushPromises();
 
-    expect(applyWindowSettingsMock).toHaveBeenCalledWith(expect.anything(), {
-      positioning: false,
-    });
+    expect(applyWindowSettingsMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { positioning: false },
+      false,
+    );
   });
 });
 

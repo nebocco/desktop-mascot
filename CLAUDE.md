@@ -21,6 +21,7 @@ Key locations:
 - `src-tauri/src/images.rs` — image registration/loading commands; copies validated PNGs into the app data `images/` dir under fixed names
 - `src/components/ImageSlot.vue` — image slot UI (preview, select, clear) used by the settings window
 - `src/windowSettings.ts` — applies persisted settings to the native main window
+- `src/windowPosition.ts` — tells user drags apart from moves the app caused, and corrects dragged positions for window managers whose reported position differs from the requested one
 - `src-tauri/src/animation/` — keyboard-driven animation: global key detection (`key_source.rs`), pure frame state machine (`logic.rs`), and the background loop that emits `animation-frame` events (`runner.rs`)
 - `src/animation.ts` — picks the image to display for the frame the backend reports
 - PrimeVue components are auto-imported via `unplugin-vue-components` (see `vite.config.ts`, generated `components.d.ts`).

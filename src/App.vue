@@ -49,10 +49,15 @@ async function applySettings(settings: Settings) {
     loadImageDataUrl(settings.images.typing2),
   ]);
   frameImages.value = { idle, typing1, typing2 };
-  if (capabilities.positioning) {
-    positionTracker.expectMove(settings.windowPosition, Date.now());
+  // 位置が変わらない適用ではウィンドウを動かさない。動かすと、その直後の
+  // ドラッグをアプリ自身による移動と見分ける必要が生じる
+  const move =
+    capabilities.positioning &&
+    positionTracker.needsMove(settings.windowPosition);
+  if (move) {
+    positionTracker.expectMove(settings.windowPosition, performance.now());
   }
-  await applyWindowSettings(settings, capabilities);
+  await applyWindowSettings(settings, capabilities, move);
 }
 
 const unlisteners: Array<() => void> = [];
@@ -82,7 +87,10 @@ onMounted(async () => {
     // 起動時の位置適用で届く移動も受け取れるよう、設定を適用する前に購読する
     unlisteners.push(
       await getCurrentWindow().onMoved((event) => {
-        const position = positionTracker.onMoved(event.payload, Date.now());
+        const position = positionTracker.onMoved(
+          event.payload,
+          performance.now(),
+        );
         if (position) {
           savePosition(position.x, position.y);
         }
@@ -99,6 +107,8 @@ onMounted(async () => {
   } catch (error) {
     log.error("Failed to load settings", String(error));
   }
+  // ここより前に届いた移動は、ウィンドウマネージャによる初期配置なので保存しない
+  positionTracker.start();
 
   unlisteners.push(
     await listen<Settings>(SETTINGS_UPDATED_EVENT, (event) => {

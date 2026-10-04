@@ -18,10 +18,14 @@ export interface WindowCapabilities {
 
 /**
  * Applies persisted settings to the current native window.
+ *
+ * Pass `move = false` to leave the position alone when the window is
+ * already where the settings say.
  */
 export async function applyWindowSettings(
   settings: Settings,
   capabilities: WindowCapabilities = { positioning: true },
+  move = true,
 ): Promise<void> {
   const window = getCurrentWindow();
   // 位置はドラッグ時のonMovedイベントが返す物理座標と単位を揃え、
@@ -33,16 +37,16 @@ export async function applyWindowSettings(
     capabilities,
   });
 
-  if (capabilities.positioning) {
+  if (!capabilities.positioning) {
+    // 位置を扱えないバックエンドでは要求しても無視されるだけなので送らない
+    log.warn("skipping window position: backend cannot position windows");
+  } else if (move) {
     await window.setPosition(
       new PhysicalPosition(
         settings.windowPosition.x,
         settings.windowPosition.y,
       ),
     );
-  } else {
-    // 位置を扱えないバックエンドでは要求しても無視されるだけなので送らない
-    log.warn("skipping window position: backend cannot position windows");
   }
   await window.setSize(
     new LogicalSize(settings.windowSize.width, settings.windowSize.height),
