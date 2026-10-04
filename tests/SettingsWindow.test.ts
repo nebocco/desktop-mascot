@@ -221,3 +221,19 @@ describe("SettingsWindow status feedback", () => {
     expect(wrapper.text()).toContain("Settings reset");
   });
 });
+
+describe("SettingsWindow idle timeout", () => {
+  test("shows the idle timeout and saves it with the settings", async () => {
+    const wrapper = mountSettingsWindow();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Idle Timeout (ms): 1000");
+
+    await findButtonByLabel(wrapper, "Save Settings").trigger("click");
+    await flushPromises();
+
+    expect(invokeMock).toHaveBeenCalledWith("save_settings", {
+      settings: expect.objectContaining({ idleTimeout: 1000 }),
+    });
+  });
+});

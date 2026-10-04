@@ -36,6 +36,8 @@ struct Settings {
     window_size: WindowSize,
     #[serde(rename = "animationSpeed")]
     animation_speed: i32,
+    #[serde(rename = "idleTimeout")]
+    idle_timeout: i32,
     images: ImagePaths,
     opacity: f32,
     #[serde(rename = "alwaysOnTop")]
@@ -51,6 +53,7 @@ impl Default for Settings {
                 height: 200,
             },
             animation_speed: 200,
+            idle_timeout: 1000,
             images: ImagePaths {
                 typing1: String::new(),
                 typing2: String::new(),
@@ -277,6 +280,17 @@ mod tests {
     }
 
     #[test]
+    fn test_idle_timeout_default() {
+        assert_eq!(Settings::default().idle_timeout, 1000);
+    }
+
+    #[test]
+    fn test_idle_timeout_uses_camel_case_in_json() {
+        let json = serde_json::to_string(&Settings::default()).unwrap();
+        assert!(json.contains("\"idleTimeout\":1000"));
+    }
+
+    #[test]
     fn test_opacity_default() {
         let settings = Settings::default();
         assert_eq!(settings.opacity, 1.0);
@@ -340,6 +354,7 @@ mod tests {
                 height: 250,
             },
             animation_speed: 100,
+            idle_timeout: 1500,
             images: ImagePaths {
                 typing1: "test1.png".to_string(),
                 typing2: "test2.png".to_string(),
@@ -357,6 +372,7 @@ mod tests {
         assert_eq!(original.window_size.width, deserialized.window_size.width);
         assert_eq!(original.window_size.height, deserialized.window_size.height);
         assert_eq!(original.animation_speed, deserialized.animation_speed);
+        assert_eq!(original.idle_timeout, deserialized.idle_timeout);
         assert_eq!(original.images.typing1, deserialized.images.typing1);
         assert_eq!(original.images.typing2, deserialized.images.typing2);
         assert_eq!(original.images.idle, deserialized.images.idle);

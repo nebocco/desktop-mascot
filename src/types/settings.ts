@@ -30,6 +30,7 @@ export interface Settings {
   windowPosition: WindowPosition;
   windowSize: WindowSize;
   animationSpeed: number; // milliseconds per frame (50-500)
+  idleTimeout: number; // milliseconds without key presses before returning to idle (300-5000)
   images: ImagePaths;
   opacity: number; // 0-1
   alwaysOnTop: boolean;
@@ -46,6 +47,7 @@ export function createDefaultSettings(): Settings {
     windowPosition: { x: 100, y: 100 },
     windowSize: { width: 200, height: 200 },
     animationSpeed: 200,
+    idleTimeout: 1000,
     images: {
       typing1: "",
       typing2: "",
@@ -79,6 +81,7 @@ export function sanitizeSettings(settings: Settings): Settings {
       height: num(settings.windowSize?.height, defaults.windowSize.height),
     },
     animationSpeed: num(settings.animationSpeed, defaults.animationSpeed),
+    idleTimeout: num(settings.idleTimeout, defaults.idleTimeout),
     opacity: num(settings.opacity, defaults.opacity),
   };
 }

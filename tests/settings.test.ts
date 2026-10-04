@@ -12,6 +12,10 @@ describe("createDefaultSettings", () => {
     expect(settings.alwaysOnTop).toBe(true);
   });
 
+  test("defaults the idle timeout to one second", () => {
+    expect(createDefaultSettings().idleTimeout).toBe(1000);
+  });
+
   test("returns independent objects so mutation does not leak", () => {
     const first = createDefaultSettings();
     first.images.typing1 = "mutated.png";
@@ -51,5 +55,14 @@ describe("sanitizeSettings", () => {
     const clean = sanitizeSettings(settings);
     expect(clean.animationSpeed).toBe(300);
     expect(clean.windowPosition.x).toBe(0);
+  });
+
+  test("replaces a null idle timeout with the default", () => {
+    const nulled = {
+      ...createDefaultSettings(),
+      idleTimeout: null,
+    } as unknown as ReturnType<typeof createDefaultSettings>;
+
+    expect(sanitizeSettings(nulled).idleTimeout).toBe(1000);
   });
 });
