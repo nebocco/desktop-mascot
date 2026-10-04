@@ -27,6 +27,8 @@ Windows communicate through the Tauri event system; settings changes propagate f
 
 ## 開発方針
 
+これは社内向けサービスであり、開発中のPJのため後方互換やデータ移行は行わず、常に理想的かつKISSなコードに書き換えて下さい。開発は以下のサイクルで行って下さい。
+
 superpowers skill の設計に従う。実装の着手前に spec と plan を作成し、実装フェーズは Subagent-Driven に行う。各スキルが定めるアーティファクトを省略せず、順序も飛ばさない。省略する場合は理由を設計ドキュメントに書く。
 
 新規の設計・計画ドキュメントは `docs/spec/`,  `docs/plan/` 配下に日付プレフィックス付き(`YYYY-MM-DD-<topic>.md`)で置く。`docs/` 直下や `docs/superpowers/`, 機能別ディレクトリには置かない。`docs/archive/` は参照専用の歴史的記録なので更新しない。
