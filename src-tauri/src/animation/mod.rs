@@ -1,6 +1,7 @@
 //! Keyboard-driven mascot animation: key detection, frame state machine,
 //! and the background loop that tells the main window which frame to show.
 
+pub mod key_source;
 pub mod logic;
 pub mod runner;
 
