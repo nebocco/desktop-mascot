@@ -72,6 +72,7 @@ describe("App drag region", () => {
       ".mascot-container",
       ".mascot-placeholder",
       ".mascot-text",
+      ".mascot-frame-label",
     ]) {
       const el = wrapper.find(selector);
       expect(el.exists(), `${selector} should exist`).toBe(true);
@@ -312,5 +313,26 @@ describe("App animation", () => {
 
     const loads = invokeMock.mock.calls.filter(([cmd]) => cmd === "load_image");
     expect(loads).toHaveLength(3);
+  });
+
+  test("shows the current frame on the placeholder when no image is registered", async () => {
+    // 画像を登録しなくてもキー検知の動作を目で確認できるようにする
+    const wrapper = mount(App);
+    await flushPromises();
+    const emitFrame = frameHandler();
+    const placeholder = () => wrapper.find(".mascot-placeholder").text();
+
+    expect(placeholder()).toContain("🐱");
+    expect(placeholder()).toContain("idle");
+
+    emitFrame({ payload: "typing1" });
+    await flushPromises();
+    expect(placeholder()).toContain("😺");
+    expect(placeholder()).toContain("typing1");
+
+    emitFrame({ payload: "typing2" });
+    await flushPromises();
+    expect(placeholder()).toContain("😸");
+    expect(placeholder()).toContain("typing2");
   });
 });

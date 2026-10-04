@@ -5,7 +5,7 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { Frame, FrameImages } from "./animation";
-import { selectFrameImage } from "./animation";
+import { PLACEHOLDER_EMOJI, selectFrameImage } from "./animation";
 import {
   ANIMATION_FRAME_EVENT,
   POSITION_CHANGED_EVENT,
@@ -162,7 +162,12 @@ function handleContextMenu(_event: MouseEvent) {
       >
       <div v-else class="mascot-placeholder" data-tauri-drag-region>
         <!-- マスコット画像が未登録の間のプレースホルダー -->
-        <div class="mascot-text" data-tauri-drag-region>🐱</div>
+        <div class="mascot-text" data-tauri-drag-region>
+          {{ PLACEHOLDER_EMOJI[currentFrame] }}
+        </div>
+        <div class="mascot-frame-label" data-tauri-drag-region>
+          {{ currentFrame }}
+        </div>
       </div>
       <button type="button" class="settings-btn" @click="openSettings">
         設定
@@ -193,6 +198,7 @@ function handleContextMenu(_event: MouseEvent) {
 .mascot-placeholder {
   font-size: 80px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   user-select: none;
@@ -200,6 +206,15 @@ function handleContextMenu(_event: MouseEvent) {
 
 .mascot-text {
   filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.mascot-frame-label {
+  font-size: 14px;
+  font-family: monospace;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  padding: 0 6px;
 }
 
 .mascot-image {

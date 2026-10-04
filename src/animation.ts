@@ -18,3 +18,13 @@ export function selectFrameImage(
 ): string | null {
   return images[frame] ?? images.idle;
 }
+
+/**
+ * Emoji shown per frame when no mascot image can be displayed, so the
+ * animation is visible before any image is registered.
+ */
+export const PLACEHOLDER_EMOJI: Record<Frame, string> = {
+  idle: "🐱",
+  typing1: "😺",
+  typing2: "😸",
+};
