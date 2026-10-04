@@ -23,7 +23,7 @@ pub fn spawn(sender: Sender<()>) {
             }
         });
         if let Err(error) = result {
-            // Waylandや、macOSで入力監視の権限がない場合はここに来る
+            // Xディスプレイに接続できない場合や、macOSで入力監視の権限がない場合はここに来る
             warn!(?error, "global key listener stopped; mascot stays idle");
         }
     });

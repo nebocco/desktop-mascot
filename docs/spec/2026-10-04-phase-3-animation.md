@@ -135,13 +135,14 @@
 - 採用: `rdev`（git依存、https://github.com/Narsil/rdev のコミット `c77b4e5456301cfa7f2226020f2a58f2f8d77c5d`、Cargo.tomlのバージョン表記は 0.6.0）。Linuxでは `x11` featureを有効にする
 - 理由:
   - crates.io の最新版 `rdev` 0.5.3（2023-06-26公開）には、macOSでメインスレッド以外から `listen` を呼ぶと落ちる問題の修正が入っていない。0.5.3のソースに `is_main_thread` は存在しない（crateを取得して確認）
-  - 修正は PR #147 「MacOS: set_is_main_thread」（2025-05-20 マージ）で、`rdev::set_is_main_thread(false)` を `listen` の前に呼ぶ形で提供される。Issue #165 で、報告者が指定コミットの git 依存で解消したと報告している。Issue #165 は修正が crates.io に未公開のまま open
+  - 修正は PR #147 「MacOS: set_is_main_thread」（2025-05-20 マージ）で、`rdev::set_is_main_thread(false)` を `listen` の前に呼ぶ形で提供される。Issue #165 のコメントで、報告者は `set_is_main_thread(false)` でクラッシュが解消したと述べ、別の箇所で依存先として同コミットに言及している。Issue #165 は修正が crates.io に未公開のまま open
   - 派生版は調べていない。本家のコミットで基準を満たすため不要と判断した
-  - 上記コミットは Issue #165 の報告者が動作を確認したもの。本家 main にはその後の変更（objc2 への移行など）があるが、未検証のため追従しない
+  - 上記コミットは Issue #165 の報告者が依存先として挙げているもの。このコミットでの動作確認が報告されているわけではない。本家 main にはその後の変更（objc2 への移行など）があるが、未検証のため追従しない
 - 未確認:
   - Windows と macOS での実機動作（開発環境がWSLgのため）。macOSの修正は第三者の報告に基づく
   - macOSでは `set_is_main_thread(false)` 後、キー名の解決がメインキュー経由になる。メインスレッドのイベントループが動いている前提であり、Tauriアプリでは満たされる想定だが実機では未確認
   - macOSでの入力監視の権限が必要。無い場合は `listen` がエラーを返し、マスコットはidleのままになる
+  - WSLg（X11）での検知の実機確認（実装後の手動確認で行う）
 
 ## テスト
 

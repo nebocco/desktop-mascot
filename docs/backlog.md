@@ -19,3 +19,33 @@ issueを立てるほどでもない積み残しを記録する。既知の限界
 ### opacityがマスコットだけでなく設定ボタンにも掛かる
 
 `src/App.vue` の `:style="{ opacity: mascotOpacity }"` は `.settings-btn` を内包する `.mascot-container` に適用されている。設定ウィンドウのOpacityスライダーは `:min="0"` なので0に振り切るとマスコットも設定ボタンも完全に不可視になる。メインウィンドウは装飾なし・タスクバー非表示のため、`settings.json` の手編集以外に復帰手段がなくなる。opacityを画像要素だけに掛けるか、スライダーの下限を0.1程度にする。
+
+## フェーズ3（アニメーション機能）の積み残し
+
+### WindowsとmacOSは未コンパイル・未実行
+
+開発環境がWSL2のため、`src-tauri/src/animation/key_source.rs` のmacOS専用行（`rdev::set_is_main_thread(false)`）は一度もコンパイルされていない。Windowsでの動作も未確認。CIで両OSの `cargo check` を回すと早く解消できる。
+
+### Windowsで `rdev::listen` がほかのアプリの入力に干渉する可能性
+
+Windowsでは `rdev::listen` がキー押下ごとに前面ウィンドウのスレッドへ `AttachThreadInput` し、`ToUnicodeEx` を呼ぶ。デッドキーを使う配列やIMEの入力が、ほかのアプリで乱れる可能性がある(未検証)。Windowsの実機確認で「ほかのアプリでの入力(IME、デッドキー)が乱れないこと」を確かめる。
+
+### `rdev` がgit依存になっている
+
+`rdev` はcrates.io版ではなく、上流リポジトリの固定コミットへのgit依存にしている。macOSの修正がcrates.ioにリリースされたら、通常の依存に戻す。
+
+### 入力中に `idleTimeout` を短くしても、進行中の待ちが終わるまで効かない
+
+`src-tauri/src/animation/runner.rs` のループは、待機中に設定が更新されても現在の待ちが終わるまで新しい値を使わない。遅れは1回だけで最大5秒。直すなら、設定の更新時に待機中のループを起こす。
+
+### `runner.rs` のテストが実時間スリープに依存している
+
+`alternates_on_keys_and_returns_to_idle_after_the_timeout` は200msの実時間スリープに依存する。負荷の高い環境で不安定になりうる。
+
+### 設定の連続保存で古い画像が表示されうる
+
+設定の保存が短時間に連続すると、`src/App.vue` の `applySettings` の画像読み込みが前後して、古い設定の画像で上書きされうる。以前からある競合で、3枚読み込むようになって少し広がった。
+
+### 検知が黙って効かない場合はログが出ない
+
+XwaylandのあるWaylandセッションでは `rdev::listen` はエラーを返さず、ネイティブWaylandアプリの入力が見えないだけになる。このためログも出ない。検知できていないことを利用者に伝える手段がない。
