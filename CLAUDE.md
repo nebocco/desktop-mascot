@@ -66,17 +66,7 @@ cargo test <テスト名> --features dev-tools -- --nocapture
 
 ## アーキテクチャ
 
-すべての機能を `[Input/Storage] → [Logic] → [Output/Storage]` の 3 ゾーンに分離する（必須）。
-
-```
-src-tauri/src/<feature>/
-├── commands.rs     # #[tauri::command] エントリ（薄い wrapper + _inner）
-├── logic.rs        # 純粋関数（self / I/O なし、cargo test で直接テスト）
-├── repository.rs   # DB I/O（sqlx）
-└── mod.rs          # 型定義
-```
-
-`commands.rs` / `repository.rs` は薄く保ち、3 行以上の計算・条件分岐・データ変換は `logic.rs` の純粋関数に切り出す。これにより `MockRuntime` を使わずに `cargo test` で検証できる範囲が広がる。フロントも同様に、Tauri 通信を `src/api/*.ts` に集約し、表示用の変換は純粋関数に出す。
+機能を追加・変更する前に [docs/architecture.md](docs/architecture.md) を読み、そこに定めたモジュール構成と責務分離に従う。
 
 ## テスト
 
