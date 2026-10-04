@@ -16,6 +16,7 @@ import { debounce } from "./debounce";
 import { loadImageDataUrl } from "./images";
 import { createLogger } from "./logger";
 import type { Settings } from "./types/settings";
+import { createPositionTracker } from "./windowPosition";
 import type { WindowCapabilities } from "./windowSettings";
 import { applyWindowSettings } from "./windowSettings";
 
@@ -35,6 +36,8 @@ const mascotOpacity = ref(1);
 // Waylandのように位置を扱えないバックエンドでは、位置の適用も保存も行わない
 const capabilities: WindowCapabilities = { positioning: true };
 
+const positionTracker = createPositionTracker();
+
 // 設定をメインウィンドウの見た目とネイティブプロパティに反映する
 async function applySettings(settings: Settings) {
   log.debug("applying settings", settings);
@@ -46,6 +49,9 @@ async function applySettings(settings: Settings) {
     loadImageDataUrl(settings.images.typing2),
   ]);
   frameImages.value = { idle, typing1, typing2 };
+  if (capabilities.positioning) {
+    positionTracker.expectMove(settings.windowPosition, Date.now());
+  }
   await applyWindowSettings(settings, capabilities);
 }
 
@@ -58,6 +64,32 @@ onMounted(async () => {
     );
   } catch (error) {
     log.error("Failed to query positioning support", String(error));
+  }
+
+  // 位置を報告できないバックエンドでは、実際の移動を伴わないonMoved(0,0)が
+  // 届いて保存済みの位置を壊すため、購読自体を行わない
+  if (capabilities.positioning) {
+    // ドラッグ中はonMovedが連続発火するため、静止後に一度だけ保存する
+    const savePosition = debounce(async (x: number, y: number) => {
+      try {
+        log.debug("saving dragged position", { x, y });
+        await invoke("save_window_position", { x, y });
+        await emitEvent(POSITION_CHANGED_EVENT, { x, y });
+      } catch (error) {
+        log.error("Failed to save window position", String(error));
+      }
+    }, 500);
+    // 起動時の位置適用で届く移動も受け取れるよう、設定を適用する前に購読する
+    unlisteners.push(
+      await getCurrentWindow().onMoved((event) => {
+        const position = positionTracker.onMoved(event.payload, Date.now());
+        if (position) {
+          savePosition(position.x, position.y);
+        }
+      }),
+    );
+  } else {
+    log.warn("position tracking disabled: backend cannot report positions");
   }
 
   try {
@@ -81,30 +113,6 @@ onMounted(async () => {
   unlisteners.push(
     await listen<Frame>(ANIMATION_FRAME_EVENT, (event) => {
       currentFrame.value = event.payload;
-    }),
-  );
-
-  // 位置を報告できないバックエンドでは、実際の移動を伴わないonMoved(0,0)が
-  // 届いて保存済みの位置を壊すため、購読自体を行わない
-  if (!capabilities.positioning) {
-    log.warn("position tracking disabled: backend cannot report positions");
-    return;
-  }
-
-  // ドラッグ中はonMovedが連続発火するため、静止後に一度だけ保存する
-  const savePosition = debounce(async (x: number, y: number) => {
-    try {
-      log.debug("saving dragged position", { x, y });
-      await invoke("save_window_position", { x, y });
-      await emitEvent(POSITION_CHANGED_EVENT, { x, y });
-    } catch (error) {
-      log.error("Failed to save window position", String(error));
-    }
-  }, 500);
-  unlisteners.push(
-    await getCurrentWindow().onMoved((event) => {
-      log.debug("onMoved fired", { x: event.payload.x, y: event.payload.y });
-      savePosition(event.payload.x, event.payload.y);
     }),
   );
 });

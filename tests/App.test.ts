@@ -167,6 +167,8 @@ describe("App drag position persistence", () => {
 
     vi.useFakeTimers();
     try {
+      // 起動時の位置適用の直後に届く移動は保存されないため、十分に時間を空ける
+      await vi.advanceTimersByTimeAsync(1500);
       handler({ payload: { x: 5, y: 6 } });
       handler({ payload: { x: 7, y: 8 } });
       expect(invokeMock).not.toHaveBeenCalledWith(
@@ -182,6 +184,43 @@ describe("App drag position persistence", () => {
       expect(emitMock).toHaveBeenCalledWith("position-changed", {
         x: 7,
         y: 8,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("does not save moves caused by applying settings and corrects later drags", async () => {
+    // 指定した位置と報告される位置がずれる環境で、保存のたびに
+    // ウィンドウが動いていかないことを担保する
+    const settings = createDefaultSettings();
+    settings.windowPosition = { x: 2649, y: 867 };
+    invokeMock.mockImplementation(async (cmd: string) => {
+      if (cmd === "get_settings") return settings;
+      if (cmd === "supports_window_positioning") return true;
+      return undefined;
+    });
+    mount(App);
+    await flushPromises();
+    const handler = windowStub.onMoved.mock.calls[0][0] as (event: {
+      payload: { x: number; y: number };
+    }) => void;
+
+    vi.useFakeTimers();
+    try {
+      handler({ payload: { x: 2649, y: 867 } });
+      handler({ payload: { x: 2611, y: 808 } });
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(invokeMock).not.toHaveBeenCalledWith(
+        "save_window_position",
+        expect.anything(),
+      );
+
+      handler({ payload: { x: 300, y: 200 } });
+      await vi.advanceTimersByTimeAsync(500);
+      expect(invokeMock).toHaveBeenCalledWith("save_window_position", {
+        x: 338,
+        y: 259,
       });
     } finally {
       vi.useRealTimers();
