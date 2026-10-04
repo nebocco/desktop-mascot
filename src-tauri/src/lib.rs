@@ -1,3 +1,4 @@
+pub mod animation;
 mod images;
 mod logging;
 mod png;
