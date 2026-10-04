@@ -1,11 +1,14 @@
-pub mod animation;
+mod animation;
 mod images;
 mod logging;
 mod png;
 
+use animation::runner::SharedConfig;
+use animation::AnimationConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tauri::Manager;
+use std::sync::{mpsc, Arc, Mutex};
+use tauri::{Emitter, Manager};
 use tracing::{debug, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -106,9 +109,14 @@ fn settings_json_with_position(contents: &str, x: i32, y: i32) -> Result<String,
         .map_err(|e| format!("Failed to serialize settings: {}", e))
 }
 
-#[tauri::command]
-fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
-    let settings_path = settings_path(&app)?;
+/// Derives the animation timing from the settings.
+fn animation_config(settings: &Settings) -> AnimationConfig {
+    animation::logic::config_from_millis(settings.animation_speed, settings.idle_timeout)
+}
+
+/// Reads the settings file, returning defaults when it does not exist.
+fn load_settings(app: &tauri::AppHandle) -> Result<Settings, String> {
+    let settings_path = settings_path(app)?;
 
     if settings_path.exists() {
         let contents = fs::read_to_string(&settings_path)
@@ -124,7 +132,16 @@ fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 }
 
 #[tauri::command]
-fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
+fn get_settings(app: tauri::AppHandle) -> Result<Settings, String> {
+    load_settings(&app)
+}
+
+#[tauri::command]
+fn save_settings(
+    app: tauri::AppHandle,
+    animation_state: tauri::State<SharedConfig>,
+    settings: Settings,
+) -> Result<(), String> {
     let settings_path = settings_path(&app)?;
     debug!(path = ?settings_path, ?settings, "saving settings");
 
@@ -132,6 +149,9 @@ fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
     fs::write(&settings_path, json).map_err(|e| format!("Failed to write settings file: {}", e))?;
+
+    // 再起動なしで速度とアイドル復帰時間の変更を効かせる
+    animation::runner::update_config(animation_state.inner(), animation_config(&settings));
 
     // 画像は選択された時点でコピー済みなので、保存が確定したこの時点で
     // 参照されなくなったファイルを片付ける
@@ -148,7 +168,10 @@ fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String
 }
 
 #[tauri::command]
-fn reset_settings(app: tauri::AppHandle) -> Result<Settings, String> {
+fn reset_settings(
+    app: tauri::AppHandle,
+    animation_state: tauri::State<SharedConfig>,
+) -> Result<Settings, String> {
     let settings_path = settings_path(&app)?;
 
     if settings_path.exists() {
@@ -156,7 +179,9 @@ fn reset_settings(app: tauri::AppHandle) -> Result<Settings, String> {
             .map_err(|e| format!("Failed to delete settings file: {}", e))?;
     }
 
-    Ok(Settings::default())
+    let settings = Settings::default();
+    animation::runner::update_config(animation_state.inner(), animation_config(&settings));
+    Ok(settings)
 }
 
 /// Persists only the main window's position without touching other
@@ -210,6 +235,31 @@ fn supports_window_positioning() -> bool {
     supported
 }
 
+/// Starts key detection and the loop that tells the main window which
+/// frame to show.
+fn start_animation(app: &tauri::AppHandle) {
+    let settings = load_settings(app).unwrap_or_else(|error| {
+        warn!(%error, "failed to load settings for animation; using defaults");
+        Settings::default()
+    });
+    let config: SharedConfig = Arc::new(Mutex::new(animation_config(&settings)));
+    app.manage(config.clone());
+
+    let (sender, receiver) = mpsc::channel();
+    animation::key_source::spawn(sender);
+
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        animation::runner::run(receiver, config, |frame| {
+            debug!(?frame, "animation frame changed");
+            if let Err(error) = handle.emit_to("main", animation::ANIMATION_FRAME_EVENT, frame) {
+                warn!(%error, "failed to emit animation frame");
+            }
+        });
+        warn!("animation loop stopped; mascot stays idle");
+    });
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     logging::init();
@@ -217,6 +267,7 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             logging::log_window_environment(app.handle());
+            start_animation(app.handle());
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
@@ -288,6 +339,18 @@ mod tests {
     fn test_idle_timeout_uses_camel_case_in_json() {
         let json = serde_json::to_string(&Settings::default()).unwrap();
         assert!(json.contains("\"idleTimeout\":1000"));
+    }
+
+    #[test]
+    fn test_animation_config_uses_speed_and_idle_timeout_from_settings() {
+        let settings = Settings {
+            animation_speed: 120,
+            idle_timeout: 2500,
+            ..Settings::default()
+        };
+        let config = animation_config(&settings);
+        assert_eq!(config.frame_min, std::time::Duration::from_millis(120));
+        assert_eq!(config.idle_timeout, std::time::Duration::from_millis(2500));
     }
 
     #[test]
